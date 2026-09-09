@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+# Une nouvelle poussée sur une PR annule l'exécution précédente :
+# inutile de payer deux fois pour un état obsolète.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Réduit le bruit dans les journaux et désactive la télémétrie Turborepo.
+  TURBO_TELEMETRY_DISABLED: 1
+  DO_NOT_TRACK: 1
+
+jobs:
+  quality:
+    name: Lint, typecheck et tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v5
+
+      - name: Installer pnpm
+        # Doit précéder setup-node, sinon le cache pnpm est introuvable.
+        uses: pnpm/action-setup@v4
+
+      - name: Installer Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Installer les dépendances
+        # --frozen-lockfile fait échouer la CI si le lockfile n'est pas à jour
+        # par rapport aux package.json.
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+
+      - name: Vérifier le formatage
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test
+
+      - name: Résumé
+        if: always()
+        run: |
+          {
+            echo "## Résultat de la CI"
+            echo ""
+            echo "| Étape | Statut |"
+            echo "| --- | --- |"
+            echo "| Formatage, lint, typecheck, tests | ${{ job.status }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  commits:
+    name: Messages de commit
+    # Les Conventional Commits alimentent le CHANGELOG et les notes de version
+    # du pipeline de release (#80) : un message non conforme casse cette chaîne.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v5
+        with:
+          # commitlint doit voir toute la plage de commits de la PR.
+          fetch-depth: 0
+
+      - name: Installer pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Installer Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Vérifier les messages de commit
+        run: >
+          pnpm exec commitlint
+          --from ${{ github.event.pull_request.base.sha }}
+          --to ${{ github.event.pull_request.head.sha }}
+          --verbose

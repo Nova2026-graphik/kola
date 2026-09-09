@@ -1,3 +1,9 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+# Dépendances autorisées à exécuter un script de post-installation.
+# pnpm les bloque par défaut ; sans cette liste, le résolveur natif
+# d'eslint-plugin-import-x n'est pas compilé et la résolution d'import échoue.
+onlyBuiltDependencies:
+  - unrs-resolver

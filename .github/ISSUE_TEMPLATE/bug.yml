@@ -1,0 +1,65 @@
+name: Bug
+description: Signaler un comportement incorrect
+labels: ['type:fix']
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Ce qui se passe
+      description: Le comportement observé, sans interprétation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: attendu
+    attributes:
+      label: Ce qui devrait se passer
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Les étapes exactes. Un bug non reproductible est un bug non corrigeable.
+      placeholder: |
+        1. Ouvrir la conversation X
+        2. Passer en mode avion
+        3. Envoyer un message
+        4. Rétablir le réseau
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reseau
+    attributes:
+      label: Conditions réseau
+      description: Beaucoup de bugs de Kola ne se produisent que dans certaines conditions.
+      options:
+        - Wi-Fi stable
+        - Données mobiles
+        - Réseau dégradé ou intermittent
+        - Hors ligne
+        - Sans rapport avec le réseau
+    validations:
+      required: true
+
+  - type: input
+    id: appareil
+    attributes:
+      label: Appareil et version
+      placeholder: 'Android 9, 2 Go de RAM — ou : iPhone SE, iOS 17'
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version de Kola
+      placeholder: '0.1.0 (build 42)'
+
+  - type: textarea
+    id: contexte
+    attributes:
+      label: Journaux, captures, contexte
+      description: Attention à ne coller aucun jeton ni aucune clé.
