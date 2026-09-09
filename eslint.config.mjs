@@ -54,6 +54,9 @@ export default tseslint.config(
         {
           groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
           pathGroups: [{ pattern: '@kola/**', group: 'internal', position: 'before' }],
+          // Les paquets du workspace sont vus comme externes (ils vivent dans
+          // node_modules via pnpm) ; sans cela le pathGroup ci-dessus est ignoré.
+          pathGroupsExcludedImportTypes: [],
           'newlines-between': 'always',
           alphabetize: { order: 'asc', caseInsensitive: true },
         },
