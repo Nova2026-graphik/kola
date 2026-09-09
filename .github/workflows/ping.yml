@@ -1,0 +1,9 @@
+name: Ping
+on:
+  push:
+    branches: [feat/2-6-fondations-m0]
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
