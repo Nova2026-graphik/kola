@@ -1,4 +1,4 @@
-import type { SUPPORTED_LOCALES } from './constants.js';
+import type { SUPPORTED_LOCALES } from './constants';
 
 /** Langue d'interface supportée. */
 export type Locale = (typeof SUPPORTED_LOCALES)[number];

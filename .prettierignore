@@ -1,0 +1,10 @@
+node_modules
+dist
+.expo
+.turbo
+coverage
+android
+ios
+pnpm-lock.yaml
+CHANGELOG.md
+packages/core/src/database.types.ts
