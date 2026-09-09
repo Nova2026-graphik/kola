@@ -3,20 +3,87 @@
 Messagerie panafricaine — la messagerie personnelle de WhatsApp, les communautés de Discord,
 les canaux de Telegram, pensés pour les réseaux d'Afrique de l'Ouest. Premier marché : le Togo.
 
-## Principe directeur
+> ⚠️ Kola n'est **pas** chiffrée de bout en bout. Les messages sont chiffrés en transit et
+> au repos, et isolés par Row Level Security, mais un accès à l'infrastructure donne accès
+> à leur contenu. C'est une décision assumée et documentée :
+> [ADR-0003](docs/adr/0003-pas-de-e2ee-en-v1.md).
 
-**Local-first.** L'application est pleinement utilisable hors ligne : tout l'historique est lisible,
-les messages se rédigent et se mettent en file d'attente, la synchronisation se fait au retour du
-réseau. Le réseau est un bonus, pas un prérequis.
+## Le principe directeur
 
-## Contraintes
+**Local-first.** SQLite est la source de vérité de l'application, pas le serveur. Tout
+l'historique est lisible hors ligne, les messages se rédigent et se mettent en file
+d'attente, la synchronisation se fait au retour du réseau. Le réseau est un bonus, pas un
+prérequis.
 
-- Réseau lent, cher et intermittent
-- Android d'entrée de gamme (2 Go de RAM, Android 9+)
-- Économie de données : compression agressive, pas de téléchargement automatique hors Wi-Fi
-- Une seule base de code pour iOS et Android
+Ce n'est pas une optimisation : c'est ce qui rend l'application utilisable là où elle est
+destinée à servir. Voir [ADR-0002](docs/adr/0002-architecture-local-first.md).
 
-## Structure
+## Les contraintes qui commandent tout
+
+- **Réseau lent, cher et intermittent.** Une connexion tombe, revient dix minutes plus tard,
+  disparaît pour la journée.
+- **Android d'entrée de gamme.** 2 Go de RAM, Android 9, stockage limité.
+- **Données comptées.** Compression agressive des médias, aucun téléchargement automatique
+  hors Wi-Fi par défaut.
+- **Budgets tenus.** Démarrage à froid sous 2 s, APK sous 40 Mo, mémoire sous 250 Mo —
+  mesurés, bloquants ([ADR-0006](docs/adr/0006-budget-de-performance.md)).
+
+## Prérequis
+
+| Outil          | Version | Note                                                |
+| -------------- | ------- | --------------------------------------------------- |
+| Node           | ≥ 20.19 | La version exacte utilisée en CI est dans `.nvmrc`. |
+| pnpm           | ≥ 10    | Voir l'installation ci-dessous.                     |
+| Android Studio | récent  | Pour l'émulateur Android.                           |
+| Xcode          | récent  | macOS uniquement, pour l'émulateur iOS.             |
+
+**pnpm n'est pas fourni avec Node.** Sous Windows, `corepack enable` échoue sans droits
+administrateur car il tente d'écrire dans `C:\Program Files\nodejs`. Dans ce cas :
+
+```bash
+npm install -g pnpm@10
+```
+
+> Le chemin du dépôt ne devrait pas contenir d'espace : Gradle échoue régulièrement dessus
+> lors des builds Android locaux. Les builds EAS, qui compilent dans le cloud, n'y sont pas
+> sensibles.
+
+## Installation
+
+```bash
+git clone https://github.com/Nova2026-graphik/kola.git
+cd kola
+pnpm install
+```
+
+L'installation configure aussi les hooks Git (Husky), qui vérifient le style au commit et
+le format des messages.
+
+## Lancer l'application
+
+```bash
+pnpm --filter mobile dev
+```
+
+Puis `a` pour ouvrir sur Android, `i` sur iOS.
+
+**Expo Go ne suffira pas au-delà du jalon M2.** SQLite, la compression média et la lecture
+automatique du SMS sont des modules natifs : il faudra un build de développement
+(`eas build --profile development`). Pour l'instant, `pnpm --filter mobile dev:go`
+fonctionne avec Expo Go.
+
+## Vérifications
+
+```bash
+pnpm lint          # ESLint sur tout le monorepo
+pnpm typecheck     # TypeScript strict, tous les paquets
+pnpm test          # Vitest (arrive en #71)
+pnpm format        # Prettier en écriture
+```
+
+Ces quatre commandes sont exactement ce que la CI exécute sur chaque PR.
+
+## Structure du dépôt
 
 ```
 kola/
@@ -30,8 +97,37 @@ kola/
 └── .github/workflows/      # CI et release
 ```
 
+## Variables d'environnement
+
+Aucun secret n'est versionné. Copiez `.env.example` en `.env` et renseignez les valeurs :
+
+```bash
+cp .env.example .env
+```
+
+Les clés Supabase se récupèrent dans le tableau de bord du projet, section _API_. La clé
+`service_role` ne doit **jamais** apparaître côté client : elle vit exclusivement dans les
+secrets des Edge Functions.
+
+## Décisions d'architecture
+
+Les choix structurants sont consignés dans [`docs/adr/`](docs/adr/README.md), avec leurs
+alternatives écartées et les raisons du rejet. À lire avant de proposer un changement de
+fond :
+
+- [ADR-0001 — Choix de la stack](docs/adr/0001-choix-de-la-stack.md)
+- [ADR-0002 — Architecture local-first](docs/adr/0002-architecture-local-first.md)
+- [ADR-0003 — Pas de chiffrement de bout en bout en V1](docs/adr/0003-pas-de-e2ee-en-v1.md)
+- [ADR-0004 — Choix de Supabase](docs/adr/0004-choix-de-supabase.md)
+- [ADR-0005 — Stratégie de release](docs/adr/0005-strategie-de-release.md)
+- [ADR-0006 — Budget de performance](docs/adr/0006-budget-de-performance.md)
+
+## Contribuer
+
+Voir [CONTRIBUTING.md](CONTRIBUTING.md) : charte de branches, format des commits, cycle de
+vie d'une PR.
+
 ## Statut
 
-En cours d'initialisation — jalon M0 (Fondations).
-
-> ⚠️ Kola n'est **pas** chiffrée de bout en bout en V1. Voir `docs/adr/0003-pas-de-e2ee-en-v1.md`.
+Jalon M0 (Fondations) en cours. Le backlog complet est dans les
+[issues](https://github.com/Nova2026-graphik/kola/issues), organisé en jalons M0 à M15.

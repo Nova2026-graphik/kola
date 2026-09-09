@@ -1,0 +1,54 @@
+name: Fonctionnalité
+description: Proposer une fonctionnalité ou une amélioration
+labels: ['type:feat']
+body:
+  - type: textarea
+    id: contexte
+    attributes:
+      label: Contexte
+      description: Pourquoi cette tâche existe, et à quoi elle sert dans le produit.
+    validations:
+      required: true
+
+  - type: textarea
+    id: travail
+    attributes:
+      label: Travail à faire
+      description: Des étapes concrètes, sous forme de cases à cocher.
+      placeholder: |
+        - [ ] étape 1
+        - [ ] étape 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptation
+    attributes:
+      label: Critères d'acceptation
+      description: Des comportements observables et vérifiables, pas des intentions.
+      placeholder: |
+        - [ ] En mode avion, le message s'affiche instantanément avec l'état « en attente »
+    validations:
+      required: true
+
+  - type: textarea
+    id: technique
+    attributes:
+      label: Notes techniques
+      description: Fichiers concernés, pièges connus, contraintes réseau ou mémoire.
+
+  - type: textarea
+    id: dependances
+    attributes:
+      label: Dépendances
+      placeholder: 'Dépend de #X. Bloque #Y.'
+
+  - type: checkboxes
+    id: contraintes
+    attributes:
+      label: Contraintes vérifiées
+      description: Les contraintes structurantes de Kola s'appliquent à toute nouvelle fonctionnalité.
+      options:
+        - label: Le comportement hors ligne a été pensé
+        - label: L'impact sur la consommation de données a été évalué
+        - label: L'impact sur les budgets de performance (ADR-0006) a été évalué

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Décisions d'architecture
+    url: https://github.com/Nova2026-graphik/kola/tree/develop/docs/adr
+    about: Avant de proposer un changement de fond, lisez les ADR — la question a peut-être déjà été tranchée.
