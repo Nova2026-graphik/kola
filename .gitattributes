@@ -1,0 +1,21 @@
+# Le développement se fait sous Windows, la CI tourne sous Linux.
+# Sans cela, les hooks shell et les instantanés de test cassent au passage d'une plateforme à l'autre.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.mp3 binary
+*.mp4 binary
+*.keystore binary
+*.jks binary
+
+pnpm-lock.yaml linguist-generated=true -diff
+packages/core/src/database.types.ts linguist-generated=true -diff
