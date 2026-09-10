@@ -44,6 +44,8 @@ export interface ConversationView {
   readonly lastMessageAt: number | null;
   readonly lastMessagePreview: string | null;
   readonly lastMessageSenderId: string | null;
+  /** Type du dernier message : décide du libellé quand il n'y a pas de texte. */
+  readonly lastMessageKind: MessageKind | null;
   readonly lastSeq: number;
   readonly lastReadSeq: number;
   readonly unreadCount: number;
