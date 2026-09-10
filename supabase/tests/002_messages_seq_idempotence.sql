@@ -142,8 +142,12 @@ select is(
 -- Suppression logique
 -- ---------------------------------------------------------------------------
 
+-- Le chemin réel du repository (#28) met `deleted_at` ET vide le corps dans la
+-- même opération. Marquer seulement `deleted_at` reproduirait une suppression
+-- qui n'existe pas — c'est ce que faisait ce test, et c'est ce qui a laissé
+-- passer le défaut corrigé par la migration 20260910120009.
 update public.messages
-   set deleted_at = now()
+   set deleted_at = now(), body = null
  where client_id = '00000000-0000-0000-0000-00000000d002';
 
 select is(
