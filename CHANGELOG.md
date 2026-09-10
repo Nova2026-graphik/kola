@@ -40,7 +40,4 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
   part d'aléatoire, abandon sur erreur définitive (#28)
 - Suite Vitest : 53 tests, 93 % de couverture sur la base locale et les repositories
   (`pnpm test`)
-- Moteur de vidage de la file sortante : ordre préservé par conversation, passe unique,
-  doublon serveur traité comme un succès (#54)
-- Ordonnanceur : reprise au démarrage, au retour du réseau et en repli périodique (#54)
 
