@@ -24,6 +24,7 @@ function toView(row: LocalConversation): ConversationView {
     lastMessageAt: row.lastMessageAt,
     lastMessagePreview: row.lastMessagePreview,
     lastMessageSenderId: row.lastMessageSenderId,
+    lastMessageKind: row.lastMessageKind,
     lastSeq: row.lastSeq,
     lastReadSeq: row.lastReadSeq,
     unreadCount: Math.max(row.lastSeq - row.lastReadSeq, 0),

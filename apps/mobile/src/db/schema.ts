@@ -54,6 +54,9 @@ export const conversations = sqliteTable(
     lastMessageAt: integer('last_message_at'),
     lastMessagePreview: text('last_message_preview'),
     lastMessageSenderId: text('last_message_sender_id'),
+    lastMessageKind: text('last_message_kind', {
+      enum: ['text', 'image', 'video', 'audio', 'file', 'system'],
+    }),
     lastSeq: integer('last_seq').notNull().default(0),
     createdAt: integer('created_at').notNull().default(now),
 
