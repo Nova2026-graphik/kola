@@ -40,12 +40,4 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
   part d'aléatoire, abandon sur erreur définitive (#28)
 - Suite Vitest : 53 tests, 93 % de couverture sur la base locale et les repositories
   (`pnpm test`)
-- Moteur de vidage de la file sortante : ordre préservé par conversation, passe unique,
-  doublon serveur traité comme un succès (#54)
-- Ordonnanceur : reprise au démarrage, au retour du réseau et en repli périodique (#54)
-- Surveillance de l'état réseau : distinction entre absence de réseau et serveur
-  injoignable, sonde de joignabilité espacée, déclenchement du vidage de la file au
-  retour de la connexion (#55)
-- Bandeau d'état réseau, informatif et non bloquant : le composeur reste toujours
-  actif (#55)
 
