@@ -24,9 +24,7 @@
     "db:test": "supabase test db --local",
     "db:lint": "supabase db lint --local --level warning",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "db:types": "node scripts/db-types.mjs",
-    "db:types:check": "node scripts/db-types.mjs --check"
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
