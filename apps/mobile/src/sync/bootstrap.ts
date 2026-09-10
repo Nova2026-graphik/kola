@@ -1,4 +1,4 @@
-import { createSupabaseTransport, getClient, hasClient } from '@kola/api';
+import { createSupabaseTransport, createSyncTransport, getClient, hasClient } from '@kola/api';
 
 import { getDatabase } from '../db/client';
 import { createNetworkMonitor } from '../network/monitor';
@@ -6,25 +6,35 @@ import { subscribeNetInfo } from '../network/netinfo';
 import { createReachabilityProbe } from '../network/probe';
 import { connectMonitorToStore } from '../network/store';
 import type { LocalDatabase } from '../repositories/database';
+import { markConversationOpened } from '../repositories/sync';
 
+import { createSyncEngine, type SyncEngine } from './engine';
 import { createOutboxProcessor } from './outbox-processor';
 import { createOutboxScheduler, type OutboxScheduler } from './scheduler';
+import { publishSyncState } from './store';
 
 /**
  * Câblage de la chaîne de synchronisation.
  *
  * C'est ici que les pièces écrites séparément se rejoignent :
  *
- *   transport (PostgREST) → moteur d'envoi → ordonnanceur → détecteur réseau
+ *   transport (PostgREST) → moteur d'envoi   → ordonnanceur ┐
+ *   transport (PostgREST) → moteur de reprise ──────────────┴→ détecteur réseau
  *
- * Chacune ignore les autres : le moteur ne connaît que l'interface de
- * transport, le détecteur ne connaît qu'un `trigger()`. C'est ce découplage
- * qui a permis de tester l'ensemble sans réseau, et qui rendra un changement
+ * Chacune ignore les autres : les moteurs ne connaissent que leur interface de
+ * transport, le détecteur ne connaît qu'un déclencheur. C'est ce découplage qui
+ * a permis de tester l'ensemble sans réseau, et qui rendra un changement
  * d'hébergeur indolore (spike #104).
+ *
+ * L'ordre du retour en ligne compte : on vide d'abord la file sortante, puis on
+ * rattrape l'entrant. L'inverse ferait revenir du serveur des messages plus
+ * récents que ceux que l'utilisateur attend de voir partir, et le fil
+ * s'afficherait dans un ordre incompréhensible pendant quelques secondes.
  */
 
 interface SyncHandle {
   readonly scheduler: OutboxScheduler;
+  readonly engine: SyncEngine;
   readonly stop: () => void;
 }
 
@@ -47,10 +57,16 @@ export function startSync(): boolean {
   }
 
   const db = getDatabase() as unknown as LocalDatabase;
-  const transport = createSupabaseTransport(getClient());
+  const client = getClient();
 
-  const processor = createOutboxProcessor({ db, transport });
+  const processor = createOutboxProcessor({ db, transport: createSupabaseTransport(client) });
   const scheduler = createOutboxScheduler({ processor });
+
+  const engine = createSyncEngine({
+    db,
+    transport: createSyncTransport(client),
+    onStateChange: publishSyncState,
+  });
 
   const monitor = createNetworkMonitor({
     subscribeNative: subscribeNetInfo,
@@ -58,9 +74,9 @@ export function startSync(): boolean {
     // seule question qui compte, et un portail captif ne saura pas y répondre.
     probe: createReachabilityProbe({ url: `${supabaseUrl()}/auth/v1/health` }),
     // Le déclencheur utile : c'est lui qui fait partir les messages écrits
-    // pendant la coupure (#54, #55).
+    // pendant la coupure (#54, #55) et qui rattrape ceux qu'on a manqués (#53).
     onBackOnline: () => {
-      void scheduler.trigger();
+      void scheduler.trigger().then(() => engine.runOnce());
     },
   });
 
@@ -68,10 +84,16 @@ export function startSync(): boolean {
   monitor.start();
   scheduler.start();
 
+  // Première reprise au démarrage. Sans `await` : l'interface doit être
+  // utilisable immédiatement, sur les données déjà en base.
+  void engine.runOnce();
+
   handle = {
     scheduler,
+    engine,
     stop: () => {
       scheduler.stop();
+      engine.cancel();
       monitor.stop();
       disconnectStore();
     },
@@ -87,7 +109,20 @@ export function stopSync(): void {
 
 /** Force une passe, par exemple au retour de l'application au premier plan. */
 export function triggerSync(): void {
-  void handle?.scheduler.trigger();
+  void handle?.scheduler.trigger().then(() => handle?.engine.runOnce());
+}
+
+/**
+ * Signale qu'une conversation vient d'être ouverte.
+ *
+ * Deux effets : elle passe en tête de la file de synchronisation, et on tente
+ * de la rattraper tout de suite. La note d'ouverture est prise même quand la
+ * synchronisation n'est pas démarrée — hors ligne, l'ordre de priorité servira
+ * à la première passe qui suivra le retour du réseau.
+ */
+export function openConversation(conversationId: string): void {
+  markConversationOpened(getDatabase() as unknown as LocalDatabase, conversationId, Date.now());
+  void handle?.engine.syncConversation(conversationId);
 }
 
 function supabaseUrl(): string {

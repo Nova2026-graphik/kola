@@ -128,3 +128,104 @@ export const EMPTY_RUN_REPORT: OutboxRunReport = {
   abandoned: 0,
   blocked: 0,
 };
+
+// ---------------------------------------------------------------------------
+// Synchronisation entrante — le pendant de la file d'attente sortante
+// ---------------------------------------------------------------------------
+
+/**
+ * Contrat du transport de la synchronisation delta (#53).
+ *
+ * Séparé d'`OutboxTransport` à dessein : les deux sens n'ont ni les mêmes
+ * échecs ni la même urgence. Un envoi qui échoue laisse un message que
+ * l'utilisateur croit parti ; une réception qui échoue laisse simplement
+ * l'appareil en retard, et la passe suivante rattrapera. Les mélanger ferait
+ * traiter le second cas avec la gravité du premier.
+ */
+
+/** Un message tel que le serveur le rend. Les dates sont en millisecondes. */
+export interface RemoteMessage {
+  readonly id: string;
+  readonly clientId: string;
+  readonly conversationId: string;
+  readonly senderId: string | null;
+  readonly seq: number;
+  /** Rang de la dernière écriture. C'est lui qui porte le curseur. */
+  readonly changeSeq: number;
+  readonly kind: MessageKind;
+  readonly body: string | null;
+  readonly replyToId: string | null;
+  readonly editedAt: number | null;
+  readonly deletedAt: number | null;
+  readonly createdAt: number;
+}
+
+/** Une conversation telle que `conversation_overview` la rend. */
+export interface RemoteConversation {
+  readonly id: string;
+  readonly type: 'dm' | 'group' | 'channel';
+  readonly title: string | null;
+  readonly avatarUrl: string | null;
+  readonly ownerId: string | null;
+  readonly communityId: string | null;
+  readonly lastMessageAt: number | null;
+  readonly lastMessagePreview: string | null;
+  readonly lastMessageSenderId: string | null;
+  readonly lastMessageKind: MessageKind | null;
+  readonly lastSeq: number;
+  /**
+   * Compteur d'écritures du serveur. Sert au client à repérer un curseur
+   * incohérent : si le sien est en avance, c'est que la base a été restaurée
+   * depuis une sauvegarde et qu'il attend des lignes qui ne viendront jamais.
+   */
+  readonly lastChangeSeq: number;
+  readonly lastReadSeq: number;
+  readonly mutedUntil: number | null;
+  readonly pinnedAt: number | null;
+  readonly archivedAt: number | null;
+  readonly createdAt: number;
+}
+
+export interface MessagePageQueryRemote {
+  readonly conversationId: string;
+  /** Curseur : on ne veut que ce qui a changé APRÈS cette valeur. */
+  readonly afterChangeSeq: number;
+  readonly limit: number;
+}
+
+export interface SyncTransport {
+  /** La liste des conversations de l'utilisateur, avec ses réglages. */
+  readonly fetchConversations: () => Promise<readonly RemoteConversation[]>;
+  /**
+   * Une page de changements, triée par `changeSeq` croissant.
+   *
+   * L'ordre n'est pas un confort : le curseur avance page par page, et une
+   * page non triée le ferait sauter par-dessus des lignes non appliquées.
+   */
+  readonly fetchMessages: (query: MessagePageQueryRemote) => Promise<readonly RemoteMessage[]>;
+}
+
+/** Ce qu'une passe de synchronisation a rapporté. */
+export interface SyncReport {
+  /** Conversations créées ou mises à jour localement. */
+  readonly conversations: number;
+  /** Messages écrits localement — insertions et mises à jour confondues. */
+  readonly messages: number;
+  /** Pages récupérées. Permet de vérifier que la reprise est bien delta. */
+  readonly pages: number;
+  /** Conversations dont la synchronisation a échoué : reprises à la passe suivante. */
+  readonly failed: number;
+  /** Conversations dont le curseur a dû être remis à zéro. */
+  readonly reset: number;
+}
+
+export const EMPTY_SYNC_REPORT: SyncReport = {
+  conversations: 0,
+  messages: 0,
+  pages: 0,
+  failed: 0,
+  reset: 0,
+};
+
+/** Taille d'une page de synchronisation. */
+export const SYNC_PAGE_SIZE = 200;

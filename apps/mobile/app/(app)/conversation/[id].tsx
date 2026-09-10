@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -23,6 +23,7 @@ import { useUnsentCounts } from '../../../src/features/messages/useUnsentCounts'
 import { useCurrentUserId, useProfiles } from '../../../src/features/profiles/useProfiles';
 import { useNow } from '../../../src/hooks/useNow';
 import { getRepositories } from '../../../src/repositories';
+import { openConversation } from '../../../src/sync/bootstrap';
 
 /**
  * Écran de conversation (#30).
@@ -49,6 +50,14 @@ export default function ConversationScreen(): React.JSX.Element {
     conversationId: id,
     currentUserId,
   });
+
+  // Ouvrir un fil le fait passer en tête de la file de synchronisation (#53) :
+  // sur un réseau lent, la première page rattrapée doit être celle que
+  // l'utilisateur regarde, pas celle d'un tri arbitraire. L'appel ne bloque
+  // rien — l'écran s'affiche sur la base locale.
+  useEffect(() => {
+    openConversation(id);
+  }, [id]);
 
   const retry = useCallback((clientId: string) => {
     void getRepositories().messages.retryMessage(clientId);

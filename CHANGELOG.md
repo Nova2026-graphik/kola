@@ -79,6 +79,12 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
   appliquées et vérifiées par les advisors de sécurité (#7)
 - Sixième fichier pgTAP : privilèges d'exécution des fonctions `SECURITY DEFINER`, avec
   la règle inverse — ce que `authenticated` doit rester capable d'appeler (#14)
+- Moteur de synchronisation delta : reprise par curseur, pagination, priorité aux
+  conversations récemment ouvertes, détection d'un curseur incohérent, indicateur
+  discret sans blocage de l'interface (#53)
+- Suite de changements `change_seq` par conversation, distincte de `seq` : elle rattrape
+  les messages modifiés ou supprimés après leur émission, qu'un curseur sur `seq` ne
+  revoyait jamais (#53)
 
 ### Corrigé
 

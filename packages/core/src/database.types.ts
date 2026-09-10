@@ -1,5 +1,5 @@
 // Fichier généré par `pnpm db:types`. Ne pas modifier à la main.
-// migrations-hash: f0a773761432d85b
+// migrations-hash: 28ba83e279d1eba8
 export type Json =
   | string
   | number
@@ -217,6 +217,7 @@ export type Database = {
           created_at: string
           dm_key: string | null
           id: string
+          last_change_seq: number
           last_message_at: string | null
           last_message_kind: Database["public"]["Enums"]["message_kind"] | null
           last_message_preview: string | null
@@ -232,6 +233,7 @@ export type Database = {
           created_at?: string
           dm_key?: string | null
           id?: string
+          last_change_seq?: number
           last_message_at?: string | null
           last_message_kind?: Database["public"]["Enums"]["message_kind"] | null
           last_message_preview?: string | null
@@ -247,6 +249,7 @@ export type Database = {
           created_at?: string
           dm_key?: string | null
           id?: string
+          last_change_seq?: number
           last_message_at?: string | null
           last_message_kind?: Database["public"]["Enums"]["message_kind"] | null
           last_message_preview?: string | null
@@ -314,6 +317,7 @@ export type Database = {
       messages: {
         Row: {
           body: string | null
+          change_seq: number
           client_id: string
           conversation_id: string
           created_at: string
@@ -327,6 +331,7 @@ export type Database = {
         }
         Insert: {
           body?: string | null
+          change_seq?: number
           client_id: string
           conversation_id: string
           created_at?: string
@@ -340,6 +345,7 @@ export type Database = {
         }
         Update: {
           body?: string | null
+          change_seq?: number
           client_id?: string
           conversation_id?: string
           created_at?: string
@@ -551,7 +557,9 @@ export type Database = {
           archived_at: string | null
           avatar_url: string | null
           community_id: string | null
+          created_at: string | null
           id: string | null
+          last_change_seq: number | null
           last_message_at: string | null
           last_message_kind: Database["public"]["Enums"]["message_kind"] | null
           last_message_preview: string | null
