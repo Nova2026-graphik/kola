@@ -4,6 +4,8 @@ import { create } from 'zustand';
 
 import { createKolaClient, getSession, onAuthChange, setClient, signOut } from '@kola/api';
 
+import { startSync, stopSync } from '../../sync/bootstrap';
+
 /**
  * Session de l'utilisateur (#23).
  *
@@ -96,9 +98,18 @@ export async function initSession(): Promise<void> {
   unsubscribe = onAuthChange((next) => {
     useSessionStore.getState().setSession(next?.user.id ?? null);
   });
+
+  // La file ne se vide que pour un utilisateur identifié : les policies RLS
+  // refuseraient toute écriture anonyme (#14).
+  if (session !== null) {
+    startSync();
+  }
 }
 
 export async function endSession(): Promise<void> {
+  // Arrêter la synchronisation AVANT de fermer la session : sinon une passe en
+  // cours enverrait des requêtes avec un jeton qui vient d'être révoqué.
+  stopSync();
   await signOut();
   useSessionStore.getState().setSession(null);
 }
