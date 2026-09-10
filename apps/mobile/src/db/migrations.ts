@@ -165,6 +165,16 @@ export const LOCAL_MIGRATIONS: readonly LocalMigration[] = [
        )`,
     ],
   },
+  {
+    version: 2,
+    name: 'type du dernier message',
+    statements: [
+      // Le serveur porte déjà `last_message_kind` : sans son équivalent local,
+      // la liste des conversations ne peut pas afficher « Photo » ou « Message
+      // vocal » à la place d'un aperçu vide (#29).
+      `alter table conversations add column last_message_kind text`,
+    ],
+  },
 ];
 
 /** Version cible de la base, déduite de la dernière migration déclarée. */
