@@ -130,8 +130,14 @@ select throws_ok(
 );
 
 -- Deux profils sans pseudo ne se bloquent pas : l'index unique est partiel.
+-- Le compte est restreint aux profils de ce test : la base peut contenir les
+-- données de démonstration (#17), et un test qui suppose une base vide est un
+-- test qui cassera.
 select is(
-  (select count(*) from public.profiles where username is null)::int,
+  (select count(*) from public.profiles
+    where username is null
+      and id in ('00000000-0000-0000-0000-0000000000a1',
+                 '00000000-0000-0000-0000-0000000000a2'))::int,
   1,
   'un profil créé par OTP SMS existe sans pseudo'
 );

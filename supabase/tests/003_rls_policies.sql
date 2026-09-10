@@ -25,13 +25,13 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-00000000c3c3'), -- carla
   ('00000000-0000-0000-0000-00000000d4d4'); -- dan
 
-update public.profiles set username = 'alice', display_name = 'Alice'
+update public.profiles set username = 'test_alice_003', display_name = 'Alice'
  where id = '00000000-0000-0000-0000-00000000a1a1';
-update public.profiles set username = 'bob', display_name = 'Bob'
+update public.profiles set username = 'test_bob_003', display_name = 'Bob'
  where id = '00000000-0000-0000-0000-00000000b2b2';
-update public.profiles set username = 'carla', display_name = 'Carla'
+update public.profiles set username = 'test_carla_003', display_name = 'Carla'
  where id = '00000000-0000-0000-0000-00000000c3c3';
-update public.profiles set username = 'dan', display_name = 'Dan'
+update public.profiles set username = 'test_dan_003', display_name = 'Dan'
  where id = '00000000-0000-0000-0000-00000000d4d4';
 
 -- Dan bloque Alice.

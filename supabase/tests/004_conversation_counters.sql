@@ -16,9 +16,9 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-00000000f001'),
   ('00000000-0000-0000-0000-00000000f002');
 
-update public.profiles set username = 'ama', display_name = 'Ama'
+update public.profiles set username = 'test_ama_004', display_name = 'Ama'
  where id = '00000000-0000-0000-0000-00000000f001';
-update public.profiles set username = 'kodjo', display_name = 'Kodjo'
+update public.profiles set username = 'test_kodjo_004', display_name = 'Kodjo'
  where id = '00000000-0000-0000-0000-00000000f002';
 
 insert into public.conversations (id, type, title, owner_id)
@@ -79,7 +79,9 @@ select is(
 );
 
 -- Supprimer le dernier message doit faire remonter le précédent.
-update public.messages set deleted_at = now()
+-- La suppression vide le corps : c'est le chemin réel du repository (#28), et
+-- ce que la migration 20260910120009 impose désormais.
+update public.messages set deleted_at = now(), body = null
  where client_id = '00000000-0000-0000-0000-000000009002';
 
 select is(
