@@ -89,7 +89,9 @@ select ok(
   and has_function_privilege('authenticated', 'public.mark_conversation_read(uuid, bigint)', 'execute')
   and has_function_privilege('authenticated', 'public.unread_count(uuid)', 'execute')
   and has_function_privilege('authenticated', 'public.create_group(uuid, text, uuid[], text)', 'execute')
-  and has_function_privilege('authenticated', 'public.search_profiles(text, int)', 'execute'),
+  and has_function_privilege('authenticated', 'public.search_profiles(text, int)', 'execute')
+  and has_function_privilege('authenticated', 'public.has_permission(uuid, text)', 'execute')
+  and has_function_privilege('authenticated', 'public.transfer_ownership(uuid, uuid)', 'execute'),
   'les fonctions applicatives restent appelables par authenticated'
 );
 
@@ -99,7 +101,11 @@ select ok(
 select ok(
   not has_function_privilege('authenticated', 'public.emit_system_message(uuid, uuid, jsonb)', 'execute')
   and not has_function_privilege('anon', 'public.emit_system_message(uuid, uuid, jsonb)', 'execute')
-  and not has_function_privilege('authenticated', 'public.system_messages_suppressed()', 'execute'),
+  and not has_function_privilege('authenticated', 'public.system_messages_suppressed()', 'execute')
+  -- Ce drapeau-ci fait baisser la garde des contrôles de rôle le temps d'un
+  -- transfert de propriété : exposé, il les désarmerait pour tout le monde.
+  and not has_function_privilege(
+    'authenticated', 'public.ownership_transfer_in_progress()', 'execute'),
   'les rouages des messages système restent internes'
 );
 

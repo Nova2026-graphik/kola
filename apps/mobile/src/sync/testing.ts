@@ -1,6 +1,12 @@
 import {
+  type AddMembersPayload,
+  type ConversationPrefsPayload,
   type CreateGroupPayload,
   type CreateGroupResult,
+  type LeaveGroupPayload,
+  type MemberPayload,
+  type SetMemberRolePayload,
+  type UpdateGroupPayload,
   DuplicateMessageError,
   TransportError,
   type DeleteMessagePayload,
@@ -36,6 +42,8 @@ export interface FakeTransport extends OutboxTransport {
   readonly received: SendMessagePayload[];
   /** Groupes créés, dans l'ordre. */
   readonly createdGroups: CreateGroupPayload[];
+  /** Opérations d'administration reçues, dans l'ordre, pour les assertions. */
+  readonly adminCalls: { op: string; payload: unknown }[];
   readonly edited: EditMessagePayload[];
   readonly deleted: DeleteMessagePayload[];
   readonly reads: MarkReadPayload[];
@@ -49,6 +57,7 @@ export function createFakeTransport(): FakeTransport {
   const state: FakeTransportState = { offline: false, nextStatus: null, nextDuplicate: false };
   const received: SendMessagePayload[] = [];
   const createdGroups: CreateGroupPayload[] = [];
+  const adminCalls: { op: string; payload: unknown }[] = [];
   const edited: EditMessagePayload[] = [];
   const deleted: DeleteMessagePayload[] = [];
   const reads: MarkReadPayload[] = [];
@@ -71,10 +80,18 @@ export function createFakeTransport(): FakeTransport {
     }
   }
 
+  /** Les opérations d'administration n'ont rien à rendre : elles réussissent ou lèvent. */
+  function record(op: string, payload: unknown): Promise<void> {
+    guard();
+    adminCalls.push({ op, payload });
+    return Promise.resolve();
+  }
+
   return {
     state,
     received,
     createdGroups,
+    adminCalls,
     edited,
     deleted,
     reads,
@@ -89,6 +106,17 @@ export function createFakeTransport(): FakeTransport {
     failNextWith: (status: number) => {
       state.nextStatus = status;
     },
+
+    updateGroup: (payload: UpdateGroupPayload): Promise<void> => record('update_group', payload),
+    addMembers: (payload: AddMembersPayload): Promise<void> => record('add_members', payload),
+    removeMember: (payload: MemberPayload): Promise<void> => record('remove_member', payload),
+    setMemberRole: (payload: SetMemberRolePayload): Promise<void> =>
+      record('set_member_role', payload),
+    transferOwnership: (payload: MemberPayload): Promise<void> =>
+      record('transfer_ownership', payload),
+    leaveGroup: (payload: LeaveGroupPayload): Promise<void> => record('leave_group', payload),
+    setConversationPrefs: (payload: ConversationPrefsPayload): Promise<void> =>
+      record('set_conversation_prefs', payload),
 
     createGroup: (payload: CreateGroupPayload): Promise<CreateGroupResult> => {
       guard();

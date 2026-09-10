@@ -139,9 +139,18 @@ export default function ConversationScreen(): React.JSX.Element {
         >
           <Text style={styles.backText}>‹</Text>
         </Pressable>
-        <Text style={styles.title} numberOfLines={1}>
-          Conversation
-        </Text>
+        <Pressable
+          style={styles.titleZone}
+          onPress={() => {
+            router.push(`/conversation/${id}-infos`);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Informations du groupe"
+        >
+          <Text style={styles.title} numberOfLines={1}>
+            Conversation
+          </Text>
+        </Pressable>
       </View>
 
       <OfflineBanner />
@@ -195,6 +204,7 @@ function EmptyConversation(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  titleZone: { flex: 1 },
   flex: {
     flex: 1,
   },

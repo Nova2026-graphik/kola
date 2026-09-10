@@ -98,6 +98,10 @@ class FakeServer {
     return {
       fetchConversations: () => Promise.resolve(conversationIds.map((id) => this.overview(id))),
 
+      // La composition n'entre pas dans le rattrapage delta : elle est
+      // récupérée à l'ouverture d'un fil (#38).
+      fetchMembers: () => Promise.resolve([]),
+
       fetchMessages: (query: MessagePageQueryRemote) => {
         this.calls += 1;
         if (this.failNext > 0) {
@@ -133,6 +137,9 @@ class FakeServer {
       pinnedAt: null,
       archivedAt: null,
       createdAt: 1_767_225_600_000,
+      description: null,
+      restricted: false,
+      myRole: 'member',
     };
   }
 }
@@ -278,6 +285,7 @@ describe('moteur de synchronisation delta', () => {
     let pagesServed = 0;
     const flaky: SyncTransport = {
       fetchConversations: transport.fetchConversations,
+      fetchMembers: transport.fetchMembers,
       fetchMessages: (query) => {
         pagesServed += 1;
         if (pagesServed > 1) {
@@ -362,6 +370,7 @@ describe('moteur de synchronisation delta', () => {
     const transport = server.transport([CONV, OTHER]);
     const partial: SyncTransport = {
       fetchConversations: transport.fetchConversations,
+      fetchMembers: transport.fetchMembers,
       fetchMessages: (query) =>
         query.conversationId === CONV
           ? Promise.reject(new Error('refus'))
@@ -405,6 +414,7 @@ describe('moteur de synchronisation delta', () => {
     const transport = server.transport([CONV, OTHER]);
     const observed: SyncTransport = {
       fetchConversations: transport.fetchConversations,
+      fetchMembers: transport.fetchMembers,
       fetchMessages: (query) => {
         order.push(query.conversationId);
         return transport.fetchMessages(query);
@@ -448,6 +458,7 @@ describe('moteur de synchronisation delta', () => {
   it('survit à une liste de conversations inaccessible', async () => {
     const report = await engine({
       fetchConversations: () => Promise.reject(new Error('hors ligne')),
+      fetchMembers: () => Promise.reject(new Error('hors ligne')),
       fetchMessages: () => Promise.reject(new Error('hors ligne')),
     }).runOnce();
 
@@ -488,5 +499,65 @@ describe('moteur de synchronisation delta', () => {
       Array.from({ length: 100 }, (_, index) => `tour ${String(index)}`),
     );
     expect(cursor()).toBe(server.lastChangeSeq(CONV));
+  });
+});
+
+describe('composition des conversations', () => {
+  it('rapatrie les membres du fil explicitement demandé', async () => {
+    const test = createTestDatabase();
+    const server = new FakeServer();
+    server.post(CONV, 'bonjour');
+
+    const asked: string[] = [];
+    const base = server.transport();
+    const sync = createSyncEngine({
+      db: test.db,
+      transport: {
+        fetchConversations: base.fetchConversations,
+        fetchMessages: base.fetchMessages,
+        fetchMembers: (id) => {
+          asked.push(id);
+          return Promise.resolve([]);
+        },
+      },
+    });
+
+    await sync.runOnce();
+    // Une passe complète ne demande la composition de personne : cinquante
+    // fils, cinquante requêtes, pour une information qui bouge rarement.
+    expect(asked).toEqual([]);
+
+    await sync.syncConversation(CONV);
+    expect(asked).toEqual([CONV]);
+    test.close();
+  });
+
+  it('rapatrie les membres même quand aucun message n’a changé', async () => {
+    const test = createTestDatabase();
+    const server = new FakeServer();
+    server.post(CONV, 'bonjour');
+
+    const asked: string[] = [];
+    const base = server.transport();
+    const transport = {
+      fetchConversations: base.fetchConversations,
+      fetchMessages: base.fetchMessages,
+      fetchMembers: (id: string) => {
+        asked.push(id);
+        return Promise.resolve([]);
+      },
+    };
+
+    const sync = createSyncEngine({ db: test.db, transport });
+    await sync.runOnce();
+    asked.length = 0;
+
+    // Le curseur est à jour : le raccourci « rien de neuf » s'applique. Un
+    // membre ajouté ou retiré ne fait pourtant pas avancer `change_seq`, qui
+    // ne compte que les écritures de messages — sauter la composition ici
+    // afficherait éternellement une liste périmée.
+    await sync.syncConversation(CONV);
+    expect(asked).toEqual([CONV]);
+    test.close();
   });
 });

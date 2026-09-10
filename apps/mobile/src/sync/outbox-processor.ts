@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import {
   DuplicateMessageError,
@@ -9,14 +9,27 @@ import {
   type MarkReadPayload,
   type OutboxItem,
   type OutboxRunReport,
+  type AddMembersPayload,
+  type ConversationPrefsPayload,
   type CreateGroupPayload,
+  type LeaveGroupPayload,
+  type MemberPayload,
   type OutboxTransport,
+  type SetMemberRolePayload,
+  type UpdateGroupPayload,
   type ReactionPayload,
   type SendMessagePayload,
   type SendMessageResult,
 } from '@kola/core';
 
-import { conversations, drafts, messages, outbox, syncState } from '../db/schema';
+import {
+  conversationMembers,
+  conversations,
+  drafts,
+  messages,
+  outbox,
+  syncState,
+} from '../db/schema';
 import type { LocalDatabase } from '../repositories/database';
 import { dequeue, pending, recordFailure } from '../repositories/outbox';
 
@@ -121,6 +134,53 @@ export function createOutboxProcessor(options: OutboxProcessorOptions): OutboxPr
         const payload = item.payload as CreateGroupPayload;
         const result = await transport.createGroup(payload);
         adoptServerGroupId(payload.clientId, result.id);
+        return;
+      }
+
+      case 'update_group': {
+        await transport.updateGroup(item.payload as UpdateGroupPayload);
+        return;
+      }
+
+      case 'add_members': {
+        await transport.addMembers(item.payload as AddMembersPayload);
+        return;
+      }
+
+      case 'remove_member': {
+        const payload = item.payload as MemberPayload;
+        await transport.removeMember(payload);
+        // Le serveur a confirmé : la ligne marquée peut vraiment partir. La
+        // supprimer avant la confirmation l'aurait fait réapparaître à la
+        // synchronisation suivante si le serveur avait refusé.
+        db.delete(conversationMembers)
+          .where(
+            and(
+              eq(conversationMembers.conversationId, payload.conversationId),
+              eq(conversationMembers.userId, payload.userId),
+            ),
+          )
+          .run();
+        return;
+      }
+
+      case 'set_member_role': {
+        await transport.setMemberRole(item.payload as SetMemberRolePayload);
+        return;
+      }
+
+      case 'transfer_ownership': {
+        await transport.transferOwnership(item.payload as MemberPayload);
+        return;
+      }
+
+      case 'leave_group': {
+        await transport.leaveGroup(item.payload as LeaveGroupPayload);
+        return;
+      }
+
+      case 'set_conversation_prefs': {
+        await transport.setConversationPrefs(item.payload as ConversationPrefsPayload);
         return;
       }
 
