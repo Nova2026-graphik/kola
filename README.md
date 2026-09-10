@@ -83,6 +83,27 @@ pnpm format        # Prettier en écriture
 
 Ces quatre commandes sont exactement ce que la CI exécute sur chaque PR.
 
+## Base de données locale
+
+Les migrations et les policies RLS se testent sur une base Postgres locale, lancée par
+Docker. Aucun compte Supabase n'est nécessaire.
+
+```bash
+pnpm db:start    # démarre Postgres + Auth (Docker requis)
+pnpm db:reset    # rejoue toutes les migrations à neuf
+pnpm db:test     # exécute la suite pgTAP
+pnpm db:lint     # linter SQL de Supabase
+pnpm db:stop     # arrête le stack
+```
+
+> Sous Windows, les ports Supabase par défaut (54321+) tombent dans une plage réservée par
+> le système. Ils sont décalés vers 54021+ dans `supabase/config.toml` ; vérifiez vos
+> propres plages avec `netsh int ipv4 show excludedportrange protocol=tcp` si le démarrage
+> échoue sur une erreur de socket.
+
+Une policy RLS ne se relit pas, elle se teste : toute migration touchant aux permissions
+doit être accompagnée de son test pgTAP, en cas passant **et** en cas refusé.
+
 ## Structure du dépôt
 
 ```
