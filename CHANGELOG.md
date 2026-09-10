@@ -62,9 +62,24 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
   jamais désactivé même hors ligne (#31)
 - Envoi optimiste et cinq états d'acheminement distincts — en attente, envoyé, reçu, lu,
   échec — avec relance manuelle et bandeau récapitulatif (#32)
+- Connexion par numéro de téléphone avec OTP SMS, indicatif +228 par défaut et
+  normalisation E.164 tolérante aux formes réellement tapées (#19)
+- Connexion par adresse e-mail avec code à six chiffres, sans lien à ouvrir (#20)
+- Écran de saisie du code : vérification automatique au sixième chiffre, renvoi avec
+  compte à rebours croissant, remplissage automatique (#21)
+- Création du profil : pseudo unique vérifié en direct, nom affiché, avatar généré à
+  partir des initiales (#22)
+- Session persistante dans un stockage chiffré, découpée sous la limite de 2048 octets
+  d'Android, avec rafraîchissement automatique (#23)
+- Transport de la file d'attente sur PostgREST : idempotence par relecture du message
+  existant, traduction des codes Postgres en erreurs transitoires ou définitives (#54)
+- Chaîne de synchronisation câblée de bout en bout — transport, moteur, ordonnanceur,
+  détecteur réseau (#54, #55)
 
 ### Corrigé
 
+- `messages.seq` n'était pas omissible à l'insertion, alors que c'est un trigger qui
+  l'attribue : le client ne pouvait pas insérer de message sans inventer une valeur (#10)
 - La suppression logique d'un message était impossible au-delà de quinze minutes : la
   contrainte de corps obligatoire et la fenêtre de modification se contredisaient. La
   suppression pour tous (#34) et la modération (#66) en dépendaient (#14)
