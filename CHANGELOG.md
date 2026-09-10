@@ -40,4 +40,28 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
   part d'aléatoire, abandon sur erreur définitive (#28)
 - Suite Vitest : 53 tests, 93 % de couverture sur la base locale et les repositories
   (`pnpm test`)
+- Moteur de vidage de la file sortante : ordre préservé par conversation, passe unique,
+  doublon serveur traité comme un succès (#54)
+- Ordonnanceur : reprise au démarrage, au retour du réseau et en repli périodique (#54)
+- Surveillance de l'état réseau : distinction entre absence de réseau et serveur
+  injoignable, sonde de joignabilité espacée, déclenchement du vidage de la file au
+  retour de la connexion (#55)
+- Bandeau d'état réseau, informatif et non bloquant : le composeur reste toujours
+  actif (#55)
+- Types TypeScript générés depuis le schéma Postgres, avec vérification de fraîcheur en
+  CI par empreinte des migrations (#16)
+- Jeu de données de démonstration, cas limites et conversation de 5 000 messages
+  compris (#17)
+- Liste des conversations : tri, aperçu, badge de non-lus, recherche locale sans accent,
+  états vides et squelettes (#29)
+- Écran de conversation : liste inversée, pagination par curseur `seq`, séparateurs de
+  date, groupement des salves, marqueur de nouveaux messages (#30)
+- Formatage des dates, initiales et recherche, écrit à la main pour épargner les
+  dizaines de kilooctets d'une bibliothèque de dates (#29, #30)
+
+### Corrigé
+
+- La suppression logique d'un message était impossible au-delà de quinze minutes : la
+  contrainte de corps obligatoire et la fenêtre de modification se contredisaient. La
+  suppression pour tous (#34) et la modération (#66) en dépendaient (#14)
 
