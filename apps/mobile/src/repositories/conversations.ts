@@ -4,6 +4,7 @@ import type { ConversationRepository, ConversationView, Unsubscribe } from '@kol
 
 import { conversations, type LocalConversation } from '../db/schema';
 
+import { conversationChanges } from './changes';
 import type { RepositoryOptions } from './database';
 import { enqueue } from './outbox';
 
@@ -37,13 +38,7 @@ function toView(row: LocalConversation): ConversationView {
 export function createConversationRepository(options: RepositoryOptions): ConversationRepository {
   const { db } = options;
   const now = options.now ?? (() => Date.now());
-  const listeners = new Set<() => void>();
-
-  function emit(): void {
-    for (const listener of listeners) {
-      listener();
-    }
-  }
+  const emit = conversationChanges.emit;
 
   return {
     listConversations: async () => {
@@ -106,9 +101,6 @@ export function createConversationRepository(options: RepositoryOptions): Conver
       emit();
     },
 
-    subscribe: (listener: () => void): Unsubscribe => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
+    subscribe: (listener: () => void): Unsubscribe => conversationChanges.subscribe(listener),
   };
 }

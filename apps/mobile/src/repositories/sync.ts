@@ -4,6 +4,7 @@ import type { RemoteConversation, RemoteMessage } from '@kola/core';
 
 import { conversations, messages, syncState } from '../db/schema';
 
+import { conversationChanges, messageChanges } from './changes';
 import type { LocalDatabase, Transaction } from './database';
 
 /**
@@ -78,10 +79,10 @@ export function applyMessagePage(
 
   const highest = page.reduce((max, message) => Math.max(max, message.changeSeq), 0);
 
-  return db.transaction((tx) => {
-    let written = 0;
+  const written = db.transaction((tx) => {
+    let count = 0;
     for (const message of page) {
-      written += upsertMessage(tx, message);
+      count += upsertMessage(tx, message);
     }
 
     tx.insert(syncState)
@@ -92,8 +93,15 @@ export function applyMessagePage(
       })
       .run();
 
-    return written;
+    return count;
   });
+
+  // Après la transaction, jamais dedans : un écouteur qui relit la base pendant
+  // l'écriture verrait un état intermédiaire, et une lecture réentrante dans
+  // une transaction synchrone est un piège sur `better-sqlite3`.
+  messageChanges.emit(conversationId);
+  conversationChanges.emit();
+  return written;
 }
 
 /**
@@ -139,6 +147,28 @@ function upsertMessage(tx: Transaction, message: RemoteMessage): number {
 }
 
 /**
+ * Écrit un message reçu en temps réel (#50).
+ *
+ * La différence avec `applyMessagePage` tient en une ligne absente : **le
+ * curseur ne bouge pas**. Realtime ne garantit ni la livraison ni l'ordre, donc
+ * recevoir l'écriture n° 47 ne prouve pas qu'on a reçu la 46. Avancer le
+ * curseur à 47 condamnerait la 46 à ne jamais être demandée — un message perdu
+ * définitivement, sans que rien ne le signale.
+ *
+ * La ligne sera donc écrite deux fois : ici, tout de suite, pour la latence ;
+ * puis par la passe delta, sur la même clé, pour la garantie. La seconde
+ * écriture est sans effet visible — c'est le prix, et il est modique.
+ */
+export function applyRealtimeMessage(db: LocalDatabase, message: RemoteMessage): void {
+  db.transaction((tx) => {
+    upsertMessage(tx, message);
+  });
+
+  messageChanges.emit(message.conversationId);
+  conversationChanges.emit();
+}
+
+/**
  * Écrit la liste des conversations venue du serveur.
  *
  * Les colonnes purement locales — `lastOpenedAt`, `localOnly` — ne figurent pas
@@ -153,7 +183,7 @@ export function applyConversations(
     return 0;
   }
 
-  return db.transaction((tx) => {
+  const count = db.transaction((tx) => {
     for (const conversation of remote) {
       tx.insert(conversations)
         .values({
@@ -203,6 +233,9 @@ export function applyConversations(
     }
     return remote.length;
   });
+
+  conversationChanges.emit();
+  return count;
 }
 
 /**

@@ -6,11 +6,11 @@ import type {
   MessageRepository,
   MessageView,
   SendMessageInput,
-  Unsubscribe,
 } from '@kola/core';
 
 import { messages, type LocalMessage } from '../db/schema';
 
+import { messageChanges } from './changes';
 import type { LocalDatabase, RepositoryOptions } from './database';
 import { clearDraftIn } from './drafts';
 import { dequeue, enqueue } from './outbox';
@@ -39,34 +39,10 @@ function toView(row: LocalMessage): MessageView {
   };
 }
 
-/** Émetteur minimal, granulaire par conversation. */
-class ChangeNotifier {
-  private readonly listeners = new Map<string, Set<() => void>>();
-
-  subscribe(key: string, listener: () => void): Unsubscribe {
-    const set = this.listeners.get(key) ?? new Set();
-    set.add(listener);
-    this.listeners.set(key, set);
-    return () => {
-      set.delete(listener);
-      if (set.size === 0) {
-        this.listeners.delete(key);
-      }
-    };
-  }
-
-  emit(key: string): void {
-    for (const listener of this.listeners.get(key) ?? []) {
-      listener();
-    }
-  }
-}
-
 export function createMessageRepository(options: RepositoryOptions): MessageRepository {
   const { db } = options;
   const now = options.now ?? (() => Date.now());
   const newId = options.newId ?? (() => globalThis.crypto.randomUUID());
-  const notifier = new ChangeNotifier();
 
   function readMessage(clientId: string): MessageView | null {
     const row = db.select().from(messages).where(eq(messages.clientId, clientId)).get();
@@ -160,7 +136,7 @@ export function createMessageRepository(options: RepositoryOptions): MessageRepo
         }
       });
 
-      notifier.emit(input.conversationId);
+      messageChanges.emit(input.conversationId);
 
       const view = readMessage(clientId);
       if (!view) {
@@ -211,7 +187,7 @@ export function createMessageRepository(options: RepositoryOptions): MessageRepo
         );
       });
 
-      notifier.emit(existing.conversationId);
+      messageChanges.emit(existing.conversationId);
 
       const view = readMessage(clientId);
       if (!view) {
@@ -266,7 +242,7 @@ export function createMessageRepository(options: RepositoryOptions): MessageRepo
         );
       });
 
-      notifier.emit(existing.conversationId);
+      messageChanges.emit(existing.conversationId);
     },
 
     retryMessage: async (clientId: string) => {
@@ -303,7 +279,7 @@ export function createMessageRepository(options: RepositoryOptions): MessageRepo
         );
       });
 
-      notifier.emit(existing.conversationId);
+      messageChanges.emit(existing.conversationId);
     },
 
     discardMessage: async (clientId: string) => {
@@ -317,11 +293,11 @@ export function createMessageRepository(options: RepositoryOptions): MessageRepo
         tx.delete(messages).where(eq(messages.clientId, clientId)).run();
       });
 
-      notifier.emit(existing.conversationId);
+      messageChanges.emit(existing.conversationId);
     },
 
     subscribe: (conversationId: string, listener: () => void) =>
-      notifier.subscribe(conversationId, listener),
+      messageChanges.subscribe(conversationId, listener),
   };
 }
 

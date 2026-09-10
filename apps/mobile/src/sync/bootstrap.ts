@@ -1,4 +1,12 @@
-import { createSupabaseTransport, createSyncTransport, getClient, hasClient } from '@kola/api';
+import { AppState, type AppStateStatus } from 'react-native';
+
+import {
+  createRealtimeSubscriber,
+  createSupabaseTransport,
+  createSyncTransport,
+  getClient,
+  hasClient,
+} from '@kola/api';
 
 import { getDatabase } from '../db/client';
 import { createNetworkMonitor } from '../network/monitor';
@@ -10,6 +18,7 @@ import { markConversationOpened } from '../repositories/sync';
 
 import { createSyncEngine, type SyncEngine } from './engine';
 import { createOutboxProcessor } from './outbox-processor';
+import { createRealtimeBridge, type RealtimeBridge } from './realtime';
 import { createOutboxScheduler, type OutboxScheduler } from './scheduler';
 import { publishSyncState } from './store';
 
@@ -35,8 +44,17 @@ import { publishSyncState } from './store';
 interface SyncHandle {
   readonly scheduler: OutboxScheduler;
   readonly engine: SyncEngine;
+  readonly realtime: RealtimeBridge;
   readonly stop: () => void;
 }
+
+/**
+ * Conversation affichée, indépendamment de l'état du canal.
+ *
+ * Nécessaire pour rouvrir le bon canal au retour au premier plan : le pont, lui,
+ * a été fermé et ne sait plus ce qu'il suivait.
+ */
+let visibleConversation: string | null = null;
 
 let handle: SyncHandle | null = null;
 
@@ -68,6 +86,21 @@ export function startSync(): boolean {
     onStateChange: publishSyncState,
   });
 
+  const realtime = createRealtimeBridge({
+    db,
+    // L'application ne tente pas de se reconnecter en arrière-plan : un
+    // appareil rangé dans une poche ne doit pas rouvrir un WebSocket toutes
+    // les minutes (#50).
+    subscriber: createRealtimeSubscriber(client, {
+      isForeground: () => AppState.currentState === 'active',
+    }),
+    // La garantie qui manque à Realtime. Sans exception : ce qui s'est passé
+    // avant l'établissement du canal n'a été livré à personne.
+    resync: (conversationId: string) => {
+      void engine.syncConversation(conversationId);
+    },
+  });
+
   const monitor = createNetworkMonitor({
     subscribeNative: subscribeNetInfo,
     // La sonde interroge NOTRE serveur, pas un point d'entrée tiers : c'est la
@@ -88,14 +121,19 @@ export function startSync(): boolean {
   // utilisable immédiatement, sur les données déjà en base.
   void engine.runOnce();
 
+  const appStateSubscription = AppState.addEventListener('change', onAppStateChange);
+
   handle = {
     scheduler,
     engine,
+    realtime,
     stop: () => {
       scheduler.stop();
       engine.cancel();
+      realtime.close();
       monitor.stop();
       disconnectStore();
+      appStateSubscription.remove();
     },
   };
 
@@ -105,6 +143,25 @@ export function startSync(): boolean {
 export function stopSync(): void {
   handle?.stop();
   handle = null;
+  visibleConversation = null;
+}
+
+/**
+ * Ferme les abonnements en arrière-plan, les rouvre au retour.
+ *
+ * Le critère d'acceptation de #50 est explicite : passer en arrière-plan ferme
+ * les abonnements et ne consomme plus de données. Un WebSocket laissé ouvert
+ * continue de recevoir — et de coûter — pour un écran que personne ne regarde.
+ */
+function onAppStateChange(state: AppStateStatus): void {
+  if (state === 'active') {
+    triggerSync();
+    if (visibleConversation !== null) {
+      handle?.realtime.open(visibleConversation);
+    }
+    return;
+  }
+  handle?.realtime.close();
 }
 
 /** Force une passe, par exemple au retour de l'application au premier plan. */
@@ -121,8 +178,20 @@ export function triggerSync(): void {
  * à la première passe qui suivra le retour du réseau.
  */
 export function openConversation(conversationId: string): void {
+  visibleConversation = conversationId;
   markConversationOpened(getDatabase() as unknown as LocalDatabase, conversationId, Date.now());
-  void handle?.engine.syncConversation(conversationId);
+  // Le canal se charge du rattrapage à sa connexion : le déclencher aussi ici
+  // ferait deux passes pour un seul écran ouvert.
+  handle?.realtime.open(conversationId);
+}
+
+/** L'écran de conversation est quitté : plus rien à écouter pour ce fil. */
+export function closeConversation(conversationId: string): void {
+  if (visibleConversation !== conversationId) {
+    return;
+  }
+  visibleConversation = null;
+  handle?.realtime.close();
 }
 
 function supabaseUrl(): string {

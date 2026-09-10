@@ -6,6 +6,7 @@ import type { RemoteConversation, RemoteMessage } from '@kola/core';
 import { conversations, messages, syncState } from '../db/schema';
 import { createClock, createTestDatabase } from '../db/testing';
 
+import { conversationChanges, messageChanges } from './changes';
 import type { LocalDatabase } from './database';
 import { applyConversations, applyMessagePage, readCursor, resetCursor } from './sync';
 
@@ -191,6 +192,34 @@ describe('écritures de la synchronisation entrante', () => {
     const row = db.select().from(syncState).get();
     expect(row?.lastChangeSeq).toBe(0);
     expect(row?.resetAt).toBe(clock.now());
+  });
+
+  it('réveille l’écran de la conversation écrite', () => {
+    // Les repositories ne sont plus les seuls à écrire : la synchronisation et
+    // le temps réel écrivent directement. Tant que l'émetteur restait privé au
+    // repository, ces écritures étaient invisibles pour l'interface — le
+    // message arrivait en base et l'écran ne bougeait pas.
+    const woken: string[] = [];
+    const stopMessages = messageChanges.subscribe(CONV, () => woken.push('messages'));
+    const stopList = conversationChanges.subscribe(() => woken.push('liste'));
+
+    applyMessagePage(db, CONV, [remoteMessage()], clock.now());
+
+    expect(woken).toEqual(['messages', 'liste']);
+    stopMessages();
+    stopList();
+  });
+
+  it('ne réveille pas les écrans des autres conversations', () => {
+    // Sans cette granularité, chaque message reçu dans n'importe quel fil
+    // re-rendrait tous les écrans ouverts.
+    let woken = 0;
+    const stop = messageChanges.subscribe('conv-2', () => (woken += 1));
+
+    applyMessagePage(db, CONV, [remoteMessage()], clock.now());
+
+    expect(woken).toBe(0);
+    stop();
   });
 
   it('n’écrit rien pour une page vide', () => {

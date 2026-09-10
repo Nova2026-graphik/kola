@@ -85,9 +85,17 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
 - Suite de changements `change_seq` par conversation, distincte de `seq` : elle rattrape
   les messages modifiés ou supprimés après leur émission, qu'un curseur sur `seq` ne
   revoyait jamais (#53)
+- Canal Realtime par conversation ouverte : l'événement passe par SQLite avant
+  l'interface, sans jamais avancer le curseur de synchronisation, avec reconnexion
+  temporisée et plafonnée, fermeture en arrière-plan et rattrapage systématique après
+  chaque connexion (#50)
 
 ### Corrigé
 
+- Les écritures faites hors des repositories — synchronisation delta et temps réel —
+  étaient invisibles pour l'interface : le message arrivait en base et l'écran ne
+  bougeait pas. L'émetteur de changements, jusque-là privé au repository, est désormais
+  partagé (#50, #53)
 - Les huit fonctions de trigger `SECURITY DEFINER` étaient exécutables par `anon` : le
   `ALTER DEFAULT PRIVILEGES` de Supabase les exposait, et le garde-fou de #14 les excluait
   parce que PostgreSQL refuse leur appel direct. Révoquées quand même — huit
