@@ -1,5 +1,5 @@
 // Fichier généré par `pnpm db:types`. Ne pas modifier à la main.
-// migrations-hash: 28ba83e279d1eba8
+// migrations-hash: cd495b94e79b1c87
 export type Json =
   | string
   | number
@@ -213,6 +213,7 @@ export type Database = {
       conversations: {
         Row: {
           avatar_url: string | null
+          client_id: string | null
           community_id: string | null
           created_at: string
           dm_key: string | null
@@ -229,6 +230,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          client_id?: string | null
           community_id?: string | null
           created_at?: string
           dm_key?: string | null
@@ -245,6 +247,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          client_id?: string | null
           community_id?: string | null
           created_at?: string
           dm_key?: string | null
@@ -594,6 +597,19 @@ export type Database = {
     }
     Functions: {
       can_read_message: { Args: { message_id: string }; Returns: boolean }
+      create_group: {
+        Args: {
+          p_avatar_url?: string
+          p_client_id: string
+          p_member_ids: string[]
+          p_title: string
+        }
+        Returns: string
+      }
+      emit_system_message: {
+        Args: { actor: string; payload: Json; target_conversation: string }
+        Returns: undefined
+      }
       get_or_create_dm: { Args: { other_user_id: string }; Returns: string }
       is_admin: { Args: { conversation_id: string }; Returns: boolean }
       is_blocked: { Args: { other_user_id: string }; Returns: boolean }
@@ -610,6 +626,16 @@ export type Database = {
         Args: { target_conversation: string }
         Returns: undefined
       }
+      search_profiles: {
+        Args: { max_results?: number; query: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          id: string
+          username: string
+        }[]
+      }
+      system_messages_suppressed: { Args: never; Returns: boolean }
       unread_count: { Args: { target_conversation: string }; Returns: number }
     }
     Enums: {

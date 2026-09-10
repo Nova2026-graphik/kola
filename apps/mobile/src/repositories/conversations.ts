@@ -1,6 +1,12 @@
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 
-import type { ConversationRepository, ConversationView, Unsubscribe } from '@kola/core';
+import type {
+  ConversationRepository,
+  ConversationView,
+  CreateGroupInput,
+  CreateGroupPayload,
+  Unsubscribe,
+} from '@kola/core';
 
 import { conversations, type LocalConversation } from '../db/schema';
 
@@ -38,9 +44,64 @@ function toView(row: LocalConversation): ConversationView {
 export function createConversationRepository(options: RepositoryOptions): ConversationRepository {
   const { db } = options;
   const now = options.now ?? (() => Date.now());
+  const newId = options.newId ?? (() => globalThis.crypto.randomUUID());
   const emit = conversationChanges.emit;
 
   return {
+    createGroup: async (input: CreateGroupInput): Promise<ConversationView> => {
+      const title = input.title.trim();
+      if (title.length === 0 || title.length > 80) {
+        throw new Error('le nom du groupe doit faire entre 1 et 80 caractères');
+      }
+
+      // L'identifiant est généré ICI, avant tout aller-retour réseau. C'est lui
+      // que le serveur retiendra comme `client_id`, ce qui rend la création
+      // idempotente — et surtout, c'est ce qui permet d'ouvrir l'écran du
+      // groupe immédiatement, même sans réseau (#37, ADR-0002).
+      const id = newId();
+      const at = now();
+      // Les membres ne sont pas écrits localement : le serveur filtre la liste
+      // (profils inexistants, personnes ayant bloqué le créateur) et fait foi.
+      // Les recopier ici afficherait une composition qui pourrait être fausse.
+      const payload: CreateGroupPayload = {
+        clientId: id,
+        title,
+        memberIds: [...input.memberIds],
+        avatarUrl: input.avatarUrl ?? null,
+      };
+
+      const row = db.transaction((tx) => {
+        const inserted = tx
+          .insert(conversations)
+          .values({
+            id,
+            type: 'group',
+            title,
+            avatarUrl: input.avatarUrl ?? null,
+            createdAt: at,
+            // Le groupe n'existe pas encore côté serveur. La colonne le dit
+            // franchement plutôt que de laisser croire à une conversation
+            // ordinaire dont les messages partiraient dans le vide.
+            localOnly: true,
+            // Il apparaît en tête de la liste tant qu'aucun message n'est
+            // arrivé : un groupe qu'on vient de créer et qu'on ne retrouve pas
+            // donne l'impression que la création a échoué.
+            lastMessageAt: at,
+          })
+          .returning()
+          .get();
+
+        // Écriture métier et mise en file dans la MÊME transaction : une
+        // création réussie avec une mise en file échouée produirait un groupe
+        // qui ne partirait jamais, sans que rien ne le signale (ADR-0002).
+        enqueue(tx, { operation: 'create_group', entityId: id, conversationId: id, payload }, at);
+        return inserted;
+      });
+
+      emit();
+      return toView(row);
+    },
+
     listConversations: async () => {
       const rows = db
         .select()

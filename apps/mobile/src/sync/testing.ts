@@ -1,4 +1,6 @@
 import {
+  type CreateGroupPayload,
+  type CreateGroupResult,
   DuplicateMessageError,
   TransportError,
   type DeleteMessagePayload,
@@ -32,6 +34,8 @@ export interface FakeTransport extends OutboxTransport {
   readonly state: FakeTransportState;
   /** Messages effectivement reçus par le « serveur », dans l'ordre d'arrivée. */
   readonly received: SendMessagePayload[];
+  /** Groupes créés, dans l'ordre. */
+  readonly createdGroups: CreateGroupPayload[];
   readonly edited: EditMessagePayload[];
   readonly deleted: DeleteMessagePayload[];
   readonly reads: MarkReadPayload[];
@@ -44,6 +48,7 @@ export interface FakeTransport extends OutboxTransport {
 export function createFakeTransport(): FakeTransport {
   const state: FakeTransportState = { offline: false, nextStatus: null, nextDuplicate: false };
   const received: SendMessagePayload[] = [];
+  const createdGroups: CreateGroupPayload[] = [];
   const edited: EditMessagePayload[] = [];
   const deleted: DeleteMessagePayload[] = [];
   const reads: MarkReadPayload[] = [];
@@ -69,6 +74,7 @@ export function createFakeTransport(): FakeTransport {
   return {
     state,
     received,
+    createdGroups,
     edited,
     deleted,
     reads,
@@ -82,6 +88,20 @@ export function createFakeTransport(): FakeTransport {
     },
     failNextWith: (status: number) => {
       state.nextStatus = status;
+    },
+
+    createGroup: (payload: CreateGroupPayload): Promise<CreateGroupResult> => {
+      guard();
+      // La fonction serveur est idempotente par `client_id` : une réémission
+      // retrouve le groupe au lieu d'en créer un second. Le faux transport doit
+      // se comporter pareil, sans quoi les tests d'idempotence passeraient ici
+      // et échoueraient en production.
+      const existing = createdGroups.find((g) => g.clientId === payload.clientId);
+      if (existing !== undefined) {
+        return Promise.resolve({ id: `srv-${existing.clientId}` });
+      }
+      createdGroups.push(payload);
+      return Promise.resolve({ id: `srv-${payload.clientId}` });
     },
 
     sendMessage: (payload: SendMessagePayload): Promise<SendMessageResult> => {

@@ -1,5 +1,7 @@
 import {
   DuplicateMessageError,
+  type CreateGroupPayload,
+  type CreateGroupResult,
   TransportError,
   type DeleteMessagePayload,
   type EditMessagePayload,
@@ -79,6 +81,30 @@ export function createSupabaseTransport(supabase: KolaClient): OutboxTransport {
       }
 
       return { id: data.id, seq: Number(data.seq) };
+    },
+
+    createGroup: async (payload: CreateGroupPayload): Promise<CreateGroupResult> => {
+      // Fonction serveur plutôt que trois insertions : la conversation et tous
+      // ses membres naissent dans une seule transaction. En deux appels, un
+      // échec du second laisserait un groupe sans membres — invisible pour
+      // tout le monde, y compris son créateur, et impossible à supprimer (#37).
+      // `p_avatar_url` a une valeur par défaut côté serveur : on omet la clé
+      // plutôt que d'envoyer `undefined`, qu'`exactOptionalPropertyTypes`
+      // distingue d'une clé absente.
+      const { data, error } = await client().rpc('create_group', {
+        p_client_id: payload.clientId,
+        p_title: payload.title,
+        p_member_ids: [...payload.memberIds],
+        ...(payload.avatarUrl === null ? {} : { p_avatar_url: payload.avatarUrl }),
+      });
+
+      if (error) {
+        throw toTransportError(error);
+      }
+      // La fonction est idempotente par `client_id` : une réémission après
+      // coupure retrouve le groupe déjà créé plutôt que d'en fabriquer un
+      // second. Il n'y a donc pas de cas de doublon à traiter ici.
+      return { id: data as unknown as string };
     },
 
     editMessage: async (payload: EditMessagePayload): Promise<void> => {

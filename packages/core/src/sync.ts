@@ -60,8 +60,26 @@ export interface SendMessageResult {
   readonly seq: number;
 }
 
+// ---------------------------------------------------------------------------
+// Création de groupe
+// ---------------------------------------------------------------------------
+
+export interface CreateGroupPayload {
+  /** Généré sur l'appareil. C'est lui qui rend la création idempotente (#37). */
+  readonly clientId: string;
+  readonly title: string;
+  readonly memberIds: readonly string[];
+  readonly avatarUrl: string | null;
+}
+
+/** Ce que le serveur attribue au groupe créé. */
+export interface CreateGroupResult {
+  readonly id: string;
+}
+
 export interface OutboxTransport {
   readonly sendMessage: (payload: SendMessagePayload) => Promise<SendMessageResult>;
+  readonly createGroup: (payload: CreateGroupPayload) => Promise<CreateGroupResult>;
   readonly editMessage: (payload: EditMessagePayload) => Promise<void>;
   readonly deleteMessage: (payload: DeleteMessagePayload) => Promise<void>;
   readonly markRead: (payload: MarkReadPayload) => Promise<void>;

@@ -5,6 +5,7 @@ import { OUTBOX_BACKOFF, type MessageRepository } from '@kola/core';
 
 import { conversations, messages } from '../db/schema';
 import { createClock, createIdGenerator, createTestDatabase } from '../db/testing';
+import { createConversationRepository } from '../repositories/conversations';
 import type { LocalDatabase } from '../repositories/database';
 import { createMessageRepository } from '../repositories/messages';
 import { count as outboxCount, pending } from '../repositories/outbox';
@@ -420,4 +421,63 @@ describe('moteur de la file sortante', () => {
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
     ]);
   });
+});
+
+describe('création de groupe', () => {
+  it('envoie le groupe et le marque comme existant côté serveur', async () => {
+    const test = createTestDatabase();
+    const db = test.db;
+    const clock = createClock();
+    const transport = createFakeTransport();
+
+    const repo = createConversationRepository({
+      db,
+      now: clock.now,
+      newId: createIdGenerator('grp'),
+    });
+    await repo.createGroup({ title: 'Tontine', memberIds: ['u1'] });
+
+    const report = await createOutboxProcessor({ db, transport, now: clock.now }).runOnce();
+
+    expect(report.sent).toBe(1);
+    expect(transport.createdGroups[0]?.title).toBe('Tontine');
+    // Tant que `localOnly` reste vrai, l'interface doit signaler un groupe qui
+    // n'existe pas encore ailleurs. La remise à zéro est le seul signal fiable
+    // que la création a abouti.
+    expect(db.select().from(conversations).get()?.localOnly).toBe(false);
+    test.close();
+  });
+
+  it('ne crée pas deux groupes après un échec transitoire', async () => {
+    const test = createTestDatabase();
+    const db = test.db;
+    const clock = createClock();
+    const transport = createFakeTransport();
+
+    const repo = createConversationRepository({
+      db,
+      now: clock.now,
+      newId: createIdGenerator('grp'),
+    });
+    await repo.createGroup({ title: 'Tontine', memberIds: [] });
+
+    const processor = createOutboxProcessor({ db, transport, now: clock.now });
+
+    transport.goOffline();
+    await processor.runOnce();
+    transport.goOnline();
+    // La temporisation exponentielle diffère la réémission : sans avancer
+    // l'horloge, la seconde passe ne tenterait rien et le test passerait pour
+    // la mauvaise raison.
+    clock.advance(10 * 60 * 1000);
+    await processor.runOnce();
+
+    expect(transport.createdGroups).toHaveLength(1);
+    expect(db.select().from(conversations).all()).toHaveLength(1);
+    expect(db.select().from(conversations).get()?.localOnly).toBe(false);
+    test.close();
+  });
+
+  // L'idempotence côté serveur — deux appels de même `client_id` rendent le même
+  // groupe — est vérifiée là où elle vit, dans 008_groups_and_system_messages.sql.
 });

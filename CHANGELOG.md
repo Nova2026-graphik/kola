@@ -89,6 +89,14 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
   l'interface, sans jamais avancer le curseur de synchronisation, avec reconnexion
   temporisée et plafonnée, fermeture en arrière-plan et rattrapage systématique après
   chaque connexion (#50)
+- Création de groupe en deux temps — sélection des membres puis nom — atomique côté
+  serveur, idempotente par `client_id`, et utilisable hors ligne : le groupe s'ouvre
+  avant tout aller-retour réseau (#37)
+- Recherche de personnes par pseudo, qui ne rend jamais le numéro de téléphone, avec
+  repli sur les personnes déjà connues quand le réseau manque (#37, en attendant #68)
+- Messages système par trigger — création, arrivée, départ, retrait, changement de titre
+  ou de photo, promotion — stockés en JSON structuré et traduits à l'affichage, jamais
+  figés en français dans la base (#41)
 
 ### Corrigé
 

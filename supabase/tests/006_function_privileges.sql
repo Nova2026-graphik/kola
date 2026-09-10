@@ -14,7 +14,9 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(6);
+select plan(7);
+
+
 
 -- ---------------------------------------------------------------------------
 -- La règle sans exception : rien de SECURITY DEFINER n'est ouvert à `anon`
@@ -85,8 +87,20 @@ select ok(
 select ok(
   has_function_privilege('authenticated', 'public.get_or_create_dm(uuid)', 'execute')
   and has_function_privilege('authenticated', 'public.mark_conversation_read(uuid, bigint)', 'execute')
-  and has_function_privilege('authenticated', 'public.unread_count(uuid)', 'execute'),
+  and has_function_privilege('authenticated', 'public.unread_count(uuid)', 'execute')
+  and has_function_privilege('authenticated', 'public.create_group(uuid, text, uuid[], text)', 'execute')
+  and has_function_privilege('authenticated', 'public.search_profiles(text, int)', 'execute'),
   'les fonctions applicatives restent appelables par authenticated'
+);
+
+-- Les fonctions internes aux triggers de #41 ne sont appelables par personne :
+-- `emit_system_message` écrit un message système sans vérifier l'appartenance,
+-- et la policy interdit précisément aux clients d'en fabriquer un (#14).
+select ok(
+  not has_function_privilege('authenticated', 'public.emit_system_message(uuid, uuid, jsonb)', 'execute')
+  and not has_function_privilege('anon', 'public.emit_system_message(uuid, uuid, jsonb)', 'execute')
+  and not has_function_privilege('authenticated', 'public.system_messages_suppressed()', 'execute'),
+  'les rouages des messages système restent internes'
 );
 
 -- ---------------------------------------------------------------------------

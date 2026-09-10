@@ -124,8 +124,22 @@ export interface MessageRepository {
   readonly subscribe: (conversationId: string, listener: () => void) => Unsubscribe;
 }
 
+export interface CreateGroupInput {
+  readonly title: string;
+  readonly memberIds: readonly string[];
+  readonly avatarUrl?: string | null;
+}
+
 export interface ConversationRepository {
   readonly listConversations: () => Promise<readonly ConversationView[]>;
+  /**
+   * Crée un groupe localement et le met en file, dans une seule transaction.
+   *
+   * Retourne l'identifiant LOCAL — celui que l'appareil a généré. C'est aussi
+   * le `client_id` que le serveur retiendra, ce qui rend la création idempotente
+   * et permet d'ouvrir l'écran du groupe avant tout aller-retour réseau (#37).
+   */
+  readonly createGroup: (input: CreateGroupInput) => Promise<ConversationView>;
   readonly getConversation: (id: string) => Promise<ConversationView | null>;
   /** Avance le curseur de lecture. Monotone : ne recule jamais. */
   readonly markRead: (conversationId: string, upToSeq: number) => Promise<void>;
@@ -142,7 +156,8 @@ export type OutboxOperation =
   | 'delete_message'
   | 'add_reaction'
   | 'remove_reaction'
-  | 'mark_read';
+  | 'mark_read'
+  | 'create_group';
 
 export interface OutboxItem {
   readonly id: number;
