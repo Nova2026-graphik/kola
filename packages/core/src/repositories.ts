@@ -69,6 +69,14 @@ export interface SendMessageInput {
    * dans les tests, où le déterminisme compte.
    */
   readonly clientId?: string;
+  /**
+   * Efface le brouillon de la conversation, dans la même transaction.
+   *
+   * L'atomicité n'est pas un détail : un plantage entre l'insertion et
+   * l'effacement laisserait le brouillon en place, et l'utilisateur
+   * réenverrait un message déjà parti.
+   */
+  readonly clearDraft?: boolean;
 }
 
 /** Pagination par curseur `seq` décroissant. Jamais de `offset`. */
