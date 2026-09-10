@@ -30,7 +30,14 @@ export default tseslint.config(
     files: ['**/*.{ts,tsx,mts,cts}'],
     plugins: { 'import-x': importX },
     languageOptions: {
-      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+      parserOptions: {
+        projectService: {
+          // Les fichiers de configuration de la racine n'appartiennent à aucun
+          // tsconfig : sans cette autorisation, le service de projet les rejette.
+          allowDefaultProject: ['*.mts', '*.mjs', '*.cjs'],
+        },
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     settings: {
       'import-x/resolver-next': [createTypeScriptImportResolver({ alwaysTryTypes: true })],
