@@ -20,3 +20,15 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
 - ADR 0001 à 0006 : stack, architecture local-first, absence de chiffrement de bout en bout
   en V1, choix de Supabase, stratégie de release, budget de performance (#5)
 - README, CONTRIBUTING, modèle de PR, gabarits d'issue, code de conduite (#6)
+- Schéma de données complet : `profiles`, `devices`, `conversations`,
+  `conversation_members`, `messages`, `attachments`, `reactions`, `receipts`,
+  `contacts`, `blocks`, `reports` (#8, #9, #10, #11, #12)
+- Idempotence de l'envoi par `client_id` unique, et attribution du `seq` monotone par
+  conversation sous verrou de ligne (#10)
+- Fonctions `SECURITY DEFINER` `is_member`, `is_admin`, `is_blocked`,
+  `is_blocked_in_conversation` et `can_read_message` (#13)
+- Policies RLS sur toutes les tables, avec deux garde-fous vérifiés à la migration :
+  aucune table sans RLS, aucune fonction `SECURITY DEFINER` exécutable par `anon` (#14)
+- Aperçu dénormalisé et compteurs de non-lus à coût constant, vue
+  `conversation_overview` (#15)
+- Base Supabase locale et suite de 89 tests pgTAP (`pnpm db:reset`, `pnpm db:test`)
