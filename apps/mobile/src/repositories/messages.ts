@@ -12,6 +12,7 @@ import type {
 import { messages, type LocalMessage } from '../db/schema';
 
 import type { LocalDatabase, RepositoryOptions } from './database';
+import { clearDraftIn } from './drafts';
 import { dequeue, enqueue } from './outbox';
 
 /**
@@ -149,6 +150,14 @@ export function createMessageRepository(options: RepositoryOptions): MessageRepo
           },
           at,
         );
+
+        // Dans la même transaction que l'insertion : le champ et le brouillon
+        // se vident ensemble, ou pas du tout. Un plantage entre les deux
+        // laisserait le brouillon en place, et l'utilisateur réenverrait un
+        // message déjà parti.
+        if (input.clearDraft === true) {
+          clearDraftIn(tx, input.conversationId);
+        }
       });
 
       notifier.emit(input.conversationId);
