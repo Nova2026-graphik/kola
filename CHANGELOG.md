@@ -32,3 +32,12 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
 - Aperçu dénormalisé et compteurs de non-lus à coût constant, vue
   `conversation_overview` (#15)
 - Base Supabase locale et suite de 89 tests pgTAP (`pnpm db:reset`, `pnpm db:test`)
+- Base SQLite locale, schéma Drizzle miroir du schéma serveur, migrations locales
+  versionnées et atomiques (#27)
+- `MessageRepository` et `ConversationRepository` : lecture locale, écriture locale puis
+  mise en file, dans une seule transaction (#28)
+- File d'attente sortante : déduplication par entité, temporisation exponentielle avec
+  part d'aléatoire, abandon sur erreur définitive (#28)
+- Suite Vitest : 53 tests, 93 % de couverture sur la base locale et les repositories
+  (`pnpm test`)
+
