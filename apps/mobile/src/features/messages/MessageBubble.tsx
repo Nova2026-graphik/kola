@@ -1,7 +1,13 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { MessageView, SyncStatus } from '@kola/core';
+import {
+  deliveryLabel,
+  deliveryStateOf,
+  isRetryable,
+  type DeliveryState,
+  type MessageView,
+} from '@kola/core';
 
 /**
  * Bulle de message.
@@ -22,19 +28,27 @@ interface Props {
 }
 
 /**
- * État d'envoi, en toutes lettres pour le lecteur d'écran.
+ * Icône d'état.
  *
- * « En attente » et « envoyé » doivent rester distincts : beaucoup
- * d'applications les confondent et laissent croire à un envoi réussi (#32).
+ * Les cinq états sont visuellement distincts. « En attente » et « envoyé »
+ * surtout : beaucoup d'applications les confondent et laissent croire à un
+ * envoi réussi, ce qui se paie cher sur un réseau intermittent (#32).
+ *
+ * L'icône ne porte jamais seule l'information — le libellé d'accessibilité la
+ * double systématiquement (#64).
  */
-function statusFor(status: SyncStatus): { glyph: string; label: string } {
-  switch (status) {
+function glyphFor(state: DeliveryState): string {
+  switch (state) {
     case 'pending':
-      return { glyph: '🕐', label: 'en attente d’envoi' };
+      return '🕐';
+    case 'sent':
+      return '✓';
+    case 'delivered':
+      return '✓✓';
+    case 'read':
+      return '✓✓';
     case 'failed':
-      return { glyph: '⚠️', label: 'échec de l’envoi, toucher pour réessayer' };
-    default:
-      return { glyph: '✓', label: 'envoyé' };
+      return '⚠️';
   }
 }
 
@@ -61,8 +75,10 @@ function MessageBubbleComponent(props: Props): React.JSX.Element {
     );
   }
 
-  const status = isOwn ? statusFor(message.syncStatus) : null;
-  const canRetry = isOwn && message.syncStatus === 'failed';
+  const state = isOwn
+    ? deliveryStateOf({ syncStatus: message.syncStatus, serverId: message.id })
+    : null;
+  const canRetry = state !== null && isRetryable(state);
 
   return (
     <View
@@ -80,7 +96,7 @@ function MessageBubbleComponent(props: Props): React.JSX.Element {
           props.senderName,
           message.body,
           message.editedAt !== null ? 'modifié' : null,
-          status?.label,
+          state === null ? null : deliveryLabel(state),
         ]
           .filter(Boolean)
           .join(', ')}
@@ -100,8 +116,17 @@ function MessageBubbleComponent(props: Props): React.JSX.Element {
               <Text style={[styles.metaText, isOwn && styles.metaTextOwn]}>modifié · </Text>
             ) : null}
             <Text style={[styles.metaText, isOwn && styles.metaTextOwn]}>{props.time}</Text>
-            {status ? (
-              <Text style={[styles.metaText, isOwn && styles.metaTextOwn]}> {status.glyph}</Text>
+            {state !== null ? (
+              <Text
+                style={[
+                  styles.metaText,
+                  isOwn && styles.metaTextOwn,
+                  state === 'read' && styles.metaTextRead,
+                ]}
+              >
+                {' '}
+                {glyphFor(state)}
+              </Text>
             ) : null}
           </View>
         ) : null}
@@ -175,6 +200,11 @@ const styles = StyleSheet.create({
   },
   metaTextOwn: {
     color: '#E8D5CF',
+  },
+  metaTextRead: {
+    // « Lu » se distingue de « reçu » par la couleur, jamais par la seule
+    // forme : deux coches identiques ne se différencient pas d'un coup d'œil.
+    color: '#7FD4A8',
   },
   systemRow: {
     alignItems: 'center',
