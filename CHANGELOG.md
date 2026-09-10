@@ -31,7 +31,7 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
   aucune table sans RLS, aucune fonction `SECURITY DEFINER` exécutable par `anon` (#14)
 - Aperçu dénormalisé et compteurs de non-lus à coût constant, vue
   `conversation_overview` (#15)
-- Base Supabase locale et suite de 89 tests pgTAP (`pnpm db:reset`, `pnpm db:test`)
+- Base Supabase locale et suite de tests pgTAP (`pnpm db:reset`, `pnpm db:test`)
 - Base SQLite locale, schéma Drizzle miroir du schéma serveur, migrations locales
   versionnées et atomiques (#27)
 - `MessageRepository` et `ConversationRepository` : lecture locale, écriture locale puis
@@ -75,9 +75,17 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
   existant, traduction des codes Postgres en erreurs transitoires ou définitives (#54)
 - Chaîne de synchronisation câblée de bout en bout — transport, moteur, ordonnanceur,
   détecteur réseau (#54, #55)
+- Projet Supabase de développement `kola-dev` en région `eu-west-3`, les onze migrations
+  appliquées et vérifiées par les advisors de sécurité (#7)
+- Sixième fichier pgTAP : privilèges d'exécution des fonctions `SECURITY DEFINER`, avec
+  la règle inverse — ce que `authenticated` doit rester capable d'appeler (#14)
 
 ### Corrigé
 
+- Les huit fonctions de trigger `SECURITY DEFINER` étaient exécutables par `anon` : le
+  `ALTER DEFAULT PRIVILEGES` de Supabase les exposait, et le garde-fou de #14 les excluait
+  parce que PostgreSQL refuse leur appel direct. Révoquées quand même — huit
+  avertissements permanents dans le rapport d'advisors, et le neuvième passe inaperçu (#14)
 - `messages.seq` n'était pas omissible à l'insertion, alors que c'est un trigger qui
   l'attribue : le client ne pouvait pas insérer de message sans inventer une valeur (#10)
 - La suppression logique d'un message était impossible au-delà de quinze minutes : la
