@@ -1,4 +1,5 @@
-import type { MessageKind } from './types';
+import type { Unsubscribe } from './repositories';
+import type { MemberRole, MessageKind } from './types';
 
 /**
  * Contrat du transport de la file d'attente sortante.
@@ -59,8 +60,80 @@ export interface SendMessageResult {
   readonly seq: number;
 }
 
+// ---------------------------------------------------------------------------
+// Création de groupe
+// ---------------------------------------------------------------------------
+
+export interface CreateGroupPayload {
+  /** Généré sur l'appareil. C'est lui qui rend la création idempotente (#37). */
+  readonly clientId: string;
+  readonly title: string;
+  readonly memberIds: readonly string[];
+  readonly avatarUrl: string | null;
+}
+
+/** Ce que le serveur attribue au groupe créé. */
+export interface CreateGroupResult {
+  readonly id: string;
+}
+
+// ---------------------------------------------------------------------------
+// Administration d'un groupe (#38, #39, #42)
+// ---------------------------------------------------------------------------
+
+export interface UpdateGroupPayload {
+  readonly conversationId: string;
+  readonly title?: string;
+  readonly description?: string | null;
+  readonly avatarUrl?: string | null;
+  readonly restricted?: boolean;
+}
+
+export interface AddMembersPayload {
+  readonly conversationId: string;
+  readonly userIds: readonly string[];
+}
+
+export interface MemberPayload {
+  readonly conversationId: string;
+  readonly userId: string;
+}
+
+export interface SetMemberRolePayload extends MemberPayload {
+  /** `owner` est impossible ici : la propriété se transfère (#39). */
+  readonly role: 'admin' | 'member';
+}
+
+export interface LeaveGroupPayload {
+  readonly conversationId: string;
+}
+
+/**
+ * Réglages par conversation.
+ *
+ * Ils vivent côté serveur et non seulement sur l'appareil : la sourdine doit
+ * s'appliquer à l'ENVOI de la notification (#58), pas seulement à son
+ * affichage. Envoyer une notification pour la masquer ensuite consommerait des
+ * données pour rien — ce qui est précisément ce que l'utilisateur cherchait à
+ * éviter en la mettant en sourdine.
+ */
+export interface ConversationPrefsPayload {
+  readonly conversationId: string;
+  readonly mutedUntil?: number | null;
+  readonly pinnedAt?: number | null;
+  readonly archivedAt?: number | null;
+}
+
 export interface OutboxTransport {
   readonly sendMessage: (payload: SendMessagePayload) => Promise<SendMessageResult>;
+  readonly createGroup: (payload: CreateGroupPayload) => Promise<CreateGroupResult>;
+  readonly updateGroup: (payload: UpdateGroupPayload) => Promise<void>;
+  readonly addMembers: (payload: AddMembersPayload) => Promise<void>;
+  readonly removeMember: (payload: MemberPayload) => Promise<void>;
+  readonly setMemberRole: (payload: SetMemberRolePayload) => Promise<void>;
+  readonly transferOwnership: (payload: MemberPayload) => Promise<void>;
+  readonly leaveGroup: (payload: LeaveGroupPayload) => Promise<void>;
+  readonly setConversationPrefs: (payload: ConversationPrefsPayload) => Promise<void>;
   readonly editMessage: (payload: EditMessagePayload) => Promise<void>;
   readonly deleteMessage: (payload: DeleteMessagePayload) => Promise<void>;
   readonly markRead: (payload: MarkReadPayload) => Promise<void>;

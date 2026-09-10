@@ -18,14 +18,15 @@ Seules les corrections de forme (fautes, liens morts) se font en place.
 
 ## Index
 
-| N°   | Titre                                                                 | Statut  | Date       |
-| ---- | --------------------------------------------------------------------- | ------- | ---------- |
-| 0001 | [Choix de la stack](0001-choix-de-la-stack.md)                        | Accepté | 2026-09-09 |
-| 0002 | [Architecture local-first](0002-architecture-local-first.md)          | Accepté | 2026-09-09 |
-| 0003 | [Pas de chiffrement de bout en bout en V1](0003-pas-de-e2ee-en-v1.md) | Accepté | 2026-09-09 |
-| 0004 | [Choix de Supabase](0004-choix-de-supabase.md)                        | Accepté | 2026-09-09 |
-| 0005 | [Stratégie de release](0005-strategie-de-release.md)                  | Accepté | 2026-09-09 |
-| 0006 | [Budget de performance](0006-budget-de-performance.md)                | Accepté | 2026-09-09 |
+| N°   | Titre                                                                        | Statut  | Date       |
+| ---- | ---------------------------------------------------------------------------- | ------- | ---------- |
+| 0001 | [Choix de la stack](0001-choix-de-la-stack.md)                               | Accepté | 2026-09-09 |
+| 0002 | [Architecture local-first](0002-architecture-local-first.md)                 | Accepté | 2026-09-09 |
+| 0003 | [Pas de chiffrement de bout en bout en V1](0003-pas-de-e2ee-en-v1.md)        | Accepté | 2026-09-09 |
+| 0004 | [Choix de Supabase](0004-choix-de-supabase.md)                               | Accepté | 2026-09-09 |
+| 0005 | [Stratégie de release](0005-strategie-de-release.md)                         | Accepté | 2026-09-09 |
+| 0006 | [Budget de performance](0006-budget-de-performance.md)                       | Accepté | 2026-09-09 |
+| 0007 | [Matrice de permissions en double](0007-matrice-de-permissions-en-double.md) | Accepté | 2026-09-10 |
 
 ## Gabarit
 

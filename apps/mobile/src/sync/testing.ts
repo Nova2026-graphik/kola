@@ -1,4 +1,12 @@
 import {
+  type AddMembersPayload,
+  type ConversationPrefsPayload,
+  type CreateGroupPayload,
+  type CreateGroupResult,
+  type LeaveGroupPayload,
+  type MemberPayload,
+  type SetMemberRolePayload,
+  type UpdateGroupPayload,
   DuplicateMessageError,
   TransportError,
   type DeleteMessagePayload,
@@ -32,6 +40,10 @@ export interface FakeTransport extends OutboxTransport {
   readonly state: FakeTransportState;
   /** Messages effectivement reçus par le « serveur », dans l'ordre d'arrivée. */
   readonly received: SendMessagePayload[];
+  /** Groupes créés, dans l'ordre. */
+  readonly createdGroups: CreateGroupPayload[];
+  /** Opérations d'administration reçues, dans l'ordre, pour les assertions. */
+  readonly adminCalls: { op: string; payload: unknown }[];
   readonly edited: EditMessagePayload[];
   readonly deleted: DeleteMessagePayload[];
   readonly reads: MarkReadPayload[];
@@ -44,6 +56,8 @@ export interface FakeTransport extends OutboxTransport {
 export function createFakeTransport(): FakeTransport {
   const state: FakeTransportState = { offline: false, nextStatus: null, nextDuplicate: false };
   const received: SendMessagePayload[] = [];
+  const createdGroups: CreateGroupPayload[] = [];
+  const adminCalls: { op: string; payload: unknown }[] = [];
   const edited: EditMessagePayload[] = [];
   const deleted: DeleteMessagePayload[] = [];
   const reads: MarkReadPayload[] = [];
@@ -66,9 +80,18 @@ export function createFakeTransport(): FakeTransport {
     }
   }
 
+  /** Les opérations d'administration n'ont rien à rendre : elles réussissent ou lèvent. */
+  function record(op: string, payload: unknown): Promise<void> {
+    guard();
+    adminCalls.push({ op, payload });
+    return Promise.resolve();
+  }
+
   return {
     state,
     received,
+    createdGroups,
+    adminCalls,
     edited,
     deleted,
     reads,
@@ -82,6 +105,31 @@ export function createFakeTransport(): FakeTransport {
     },
     failNextWith: (status: number) => {
       state.nextStatus = status;
+    },
+
+    updateGroup: (payload: UpdateGroupPayload): Promise<void> => record('update_group', payload),
+    addMembers: (payload: AddMembersPayload): Promise<void> => record('add_members', payload),
+    removeMember: (payload: MemberPayload): Promise<void> => record('remove_member', payload),
+    setMemberRole: (payload: SetMemberRolePayload): Promise<void> =>
+      record('set_member_role', payload),
+    transferOwnership: (payload: MemberPayload): Promise<void> =>
+      record('transfer_ownership', payload),
+    leaveGroup: (payload: LeaveGroupPayload): Promise<void> => record('leave_group', payload),
+    setConversationPrefs: (payload: ConversationPrefsPayload): Promise<void> =>
+      record('set_conversation_prefs', payload),
+
+    createGroup: (payload: CreateGroupPayload): Promise<CreateGroupResult> => {
+      guard();
+      // La fonction serveur est idempotente par `client_id` : une réémission
+      // retrouve le groupe au lieu d'en créer un second. Le faux transport doit
+      // se comporter pareil, sans quoi les tests d'idempotence passeraient ici
+      // et échoueraient en production.
+      const existing = createdGroups.find((g) => g.clientId === payload.clientId);
+      if (existing !== undefined) {
+        return Promise.resolve({ id: `srv-${existing.clientId}` });
+      }
+      createdGroups.push(payload);
+      return Promise.resolve({ id: `srv-${payload.clientId}` });
     },
 
     sendMessage: (payload: SendMessagePayload): Promise<SendMessageResult> => {

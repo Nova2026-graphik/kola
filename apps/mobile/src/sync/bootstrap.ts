@@ -10,6 +10,7 @@ import { markConversationOpened } from '../repositories/sync';
 
 import { createSyncEngine, type SyncEngine } from './engine';
 import { createOutboxProcessor } from './outbox-processor';
+import { createRealtimeBridge, type RealtimeBridge } from './realtime';
 import { createOutboxScheduler, type OutboxScheduler } from './scheduler';
 import { publishSyncState } from './store';
 
@@ -37,6 +38,14 @@ interface SyncHandle {
   readonly engine: SyncEngine;
   readonly stop: () => void;
 }
+
+/**
+ * Conversation affichée, indépendamment de l'état du canal.
+ *
+ * Nécessaire pour rouvrir le bon canal au retour au premier plan : le pont, lui,
+ * a été fermé et ne sait plus ce qu'il suivait.
+ */
+let visibleConversation: string | null = null;
 
 let handle: SyncHandle | null = null;
 
@@ -96,6 +105,7 @@ export function startSync(): boolean {
       engine.cancel();
       monitor.stop();
       disconnectStore();
+      appStateSubscription.remove();
     },
   };
 
@@ -105,6 +115,25 @@ export function startSync(): boolean {
 export function stopSync(): void {
   handle?.stop();
   handle = null;
+  visibleConversation = null;
+}
+
+/**
+ * Ferme les abonnements en arrière-plan, les rouvre au retour.
+ *
+ * Le critère d'acceptation de #50 est explicite : passer en arrière-plan ferme
+ * les abonnements et ne consomme plus de données. Un WebSocket laissé ouvert
+ * continue de recevoir — et de coûter — pour un écran que personne ne regarde.
+ */
+function onAppStateChange(state: AppStateStatus): void {
+  if (state === 'active') {
+    triggerSync();
+    if (visibleConversation !== null) {
+      handle?.realtime.open(visibleConversation);
+    }
+    return;
+  }
+  handle?.realtime.close();
 }
 
 /** Force une passe, par exemple au retour de l'application au premier plan. */

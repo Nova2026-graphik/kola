@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OfflineBanner } from '../../src/components/OfflineBanner';
@@ -51,7 +51,20 @@ export default function ConversationsScreen(): React.JSX.Element {
       <OfflineBanner />
 
       <View style={styles.header}>
-        <Text style={styles.heading}>Kola</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.heading}>Kola</Text>
+          <Pressable
+            style={styles.newGroup}
+            onPress={() => {
+              router.push('/nouveau-groupe');
+            }}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Créer un groupe"
+          >
+            <Text style={styles.newGroupText}>Nouveau groupe</Text>
+          </Pressable>
+        </View>
         <TextInput
           style={styles.search}
           value={search}
@@ -145,6 +158,14 @@ function EmptyState({
 }
 
 const styles = StyleSheet.create({
+  headerRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  newGroup: {
+    backgroundColor: '#F2E9DE',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  newGroupText: { color: '#1F1B16', fontSize: 14, fontWeight: '600' },
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',

@@ -88,6 +88,10 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- Les écritures faites hors des repositories — synchronisation delta et temps réel —
+  étaient invisibles pour l'interface : le message arrivait en base et l'écran ne
+  bougeait pas. L'émetteur de changements, jusque-là privé au repository, est désormais
+  partagé (#50, #53)
 - Les huit fonctions de trigger `SECURITY DEFINER` étaient exécutables par `anon` : le
   `ALTER DEFAULT PRIVILEGES` de Supabase les exposait, et le garde-fou de #14 les excluait
   parce que PostgreSQL refuse leur appel direct. Révoquées quand même — huit
