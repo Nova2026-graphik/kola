@@ -18,6 +18,7 @@ import { Composer } from '../../../src/features/messages/Composer';
 import type { FeedItem } from '../../../src/features/messages/grouping';
 import { MessageBubble } from '../../../src/features/messages/MessageBubble';
 import { PendingBanner } from '../../../src/features/messages/PendingBanner';
+import { SystemMessage } from '../../../src/features/messages/SystemMessage';
 import { useMessageFeed } from '../../../src/features/messages/useMessageFeed';
 import { useUnsentCounts } from '../../../src/features/messages/useUnsentCounts';
 import { useCurrentUserId, useProfiles } from '../../../src/features/profiles/useProfiles';
@@ -64,6 +65,17 @@ export default function ConversationScreen(): React.JSX.Element {
     };
   }, [id]);
 
+  const resolveName = useCallback(
+    (userId: string | null): string | null => {
+      if (userId === null) {
+        return null;
+      }
+      const profile = profiles.get(userId);
+      return profile?.displayName ?? profile?.username ?? null;
+    },
+    [profiles],
+  );
+
   const retry = useCallback((clientId: string) => {
     void getRepositories().messages.retryMessage(clientId);
   }, []);
@@ -89,6 +101,12 @@ export default function ConversationScreen(): React.JSX.Element {
         );
       }
 
+      // Un message système n'est la parole de personne : il ne prend ni bulle
+      // ni avatar, et sa phrase est construite à l'affichage (#41).
+      if (item.message.kind === 'system') {
+        return <SystemMessage message={item.message} resolveName={resolveName} />;
+      }
+
       const sender = item.message.senderId === null ? null : profiles.get(item.message.senderId);
 
       return (
@@ -103,7 +121,7 @@ export default function ConversationScreen(): React.JSX.Element {
         />
       );
     },
-    [currentUserId, now, profiles, retry],
+    [currentUserId, now, profiles, resolveName, retry],
   );
 
   return (
@@ -121,9 +139,18 @@ export default function ConversationScreen(): React.JSX.Element {
         >
           <Text style={styles.backText}>‹</Text>
         </Pressable>
-        <Text style={styles.title} numberOfLines={1}>
-          Conversation
-        </Text>
+        <Pressable
+          style={styles.titleZone}
+          onPress={() => {
+            router.push(`/conversation/${id}-infos`);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Informations du groupe"
+        >
+          <Text style={styles.title} numberOfLines={1}>
+            Conversation
+          </Text>
+        </Pressable>
       </View>
 
       <OfflineBanner />
@@ -177,6 +204,7 @@ function EmptyConversation(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  titleZone: { flex: 1 },
   flex: {
     flex: 1,
   },

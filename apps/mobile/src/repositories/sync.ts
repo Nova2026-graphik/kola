@@ -1,8 +1,8 @@
 import { desc, eq, sql } from 'drizzle-orm';
 
-import type { RemoteConversation, RemoteMessage } from '@kola/core';
+import type { RemoteConversation, RemoteMember, RemoteMessage } from '@kola/core';
 
-import { conversations, messages, syncState } from '../db/schema';
+import { conversationMembers, conversations, messages, profiles, syncState } from '../db/schema';
 
 import { conversationChanges, messageChanges } from './changes';
 import type { LocalDatabase, Transaction } from './database';
@@ -203,6 +203,9 @@ export function applyConversations(
           pinnedAt: conversation.pinnedAt,
           archivedAt: conversation.archivedAt,
           createdAt: conversation.createdAt,
+          description: conversation.description,
+          restricted: conversation.restricted,
+          myRole: conversation.myRole,
           localOnly: false,
         })
         .onConflictDoUpdate({
@@ -218,6 +221,9 @@ export function applyConversations(
             lastMessageSenderId: conversation.lastMessageSenderId,
             lastMessageKind: conversation.lastMessageKind,
             lastSeq: conversation.lastSeq,
+            description: conversation.description,
+            restricted: conversation.restricted,
+            myRole: conversation.myRole,
             mutedUntil: conversation.mutedUntil,
             pinnedAt: conversation.pinnedAt,
             archivedAt: conversation.archivedAt,
@@ -305,4 +311,59 @@ export function lastSyncedAt(db: LocalDatabase): number | null {
     .get();
 
   return row?.at ?? null;
+}
+
+/**
+ * Écrit la composition d'une conversation venue du serveur (#38).
+ *
+ * Remplacement complet plutôt que fusion : un membre parti côté serveur doit
+ * disparaître ici, et une fusion ne saurait pas le distinguer d'un membre
+ * simplement absent de la page. La liste est courte par nature — un groupe, pas
+ * un annuaire — donc le remplacement ne coûte rien.
+ *
+ * Les profils sont écrits au passage : sans eux, l'écran d'infos afficherait
+ * une liste d'identifiants.
+ */
+export function applyMembers(
+  db: LocalDatabase,
+  conversationId: string,
+  remote: readonly RemoteMember[],
+): number {
+  db.transaction((tx) => {
+    tx.delete(conversationMembers)
+      .where(eq(conversationMembers.conversationId, conversationId))
+      .run();
+
+    for (const member of remote) {
+      tx.insert(conversationMembers)
+        .values({
+          conversationId,
+          userId: member.userId,
+          role: member.role,
+          joinedAt: member.joinedAt,
+        })
+        .onConflictDoNothing()
+        .run();
+
+      tx.insert(profiles)
+        .values({
+          id: member.userId,
+          username: member.username,
+          displayName: member.displayName,
+          avatarUrl: member.avatarUrl,
+        })
+        .onConflictDoUpdate({
+          target: profiles.id,
+          set: {
+            username: member.username,
+            displayName: member.displayName,
+            avatarUrl: member.avatarUrl,
+          },
+        })
+        .run();
+    }
+  });
+
+  conversationChanges.emit();
+  return remote.length;
 }

@@ -8,6 +8,14 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(16);
 
+-- Les messages système (#41) sont posés par trigger à chaque arrivée de membre,
+-- chaque départ et chaque changement de titre. Les fixtures ci-dessous ne sont
+-- pas des actions d'utilisateur : les laisser produire des annonces décalerait
+-- tous les `seq` et fausserait ce que ces tests mesurent. On les fait donc
+-- taire ici. Le comportement lui-même est vérifié dans 008_system_messages.sql.
+select set_config('kola.suppress_system_messages', 'on', true);
+
+
 -- ---------------------------------------------------------------------------
 -- Fixtures
 -- ---------------------------------------------------------------------------

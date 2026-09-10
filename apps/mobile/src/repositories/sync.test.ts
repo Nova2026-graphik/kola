@@ -60,6 +60,9 @@ function remoteConversation(overrides: Partial<RemoteConversation> = {}): Remote
     pinnedAt: null,
     archivedAt: null,
     createdAt: 1_767_225_600_000,
+    description: null,
+    restricted: false,
+    myRole: 'member',
     ...overrides,
   };
 }

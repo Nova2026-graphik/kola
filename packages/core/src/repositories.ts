@@ -1,4 +1,4 @@
-import type { ConversationType, MessageKind, SyncStatus } from './types';
+import type { ConversationType, MemberRole, MessageKind, SyncStatus } from './types';
 
 /**
  * Contrats des repositories.
@@ -52,6 +52,26 @@ export interface ConversationView {
   readonly mutedUntil: number | null;
   readonly pinnedAt: number | null;
   readonly archivedAt: number | null;
+  readonly description: string | null;
+  /** Mode restreint : seuls les administrateurs écrivent (#39). */
+  readonly restricted: boolean;
+  /**
+   * Rôle de l'utilisateur courant.
+   *
+   * Sert à l'interface, pour ne pas proposer d'action vouée à l'échec. Il ne
+   * constitue jamais la sécurité : elle est portée par RLS côté serveur.
+   */
+  readonly myRole: MemberRole;
+}
+
+/** Un membre, tel que l'écran d'infos l'affiche (#38). */
+export interface MemberView {
+  readonly userId: string;
+  readonly role: MemberRole;
+  readonly joinedAt: number;
+  readonly displayName: string | null;
+  readonly username: string | null;
+  readonly avatarUrl: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,8 +144,48 @@ export interface MessageRepository {
   readonly subscribe: (conversationId: string, listener: () => void) => Unsubscribe;
 }
 
+export interface CreateGroupInput {
+  readonly title: string;
+  readonly memberIds: readonly string[];
+  readonly avatarUrl?: string | null;
+}
+
+export interface UpdateGroupInput {
+  readonly title?: string;
+  readonly description?: string | null;
+  readonly restricted?: boolean;
+}
+
+export interface ConversationPrefs {
+  readonly mutedUntil?: number | null;
+  readonly pinnedAt?: number | null;
+  readonly archivedAt?: number | null;
+}
+
 export interface ConversationRepository {
   readonly listConversations: () => Promise<readonly ConversationView[]>;
+  /** Membres connus localement. Lisible hors ligne, comme le reste (#38). */
+  readonly listMembers: (conversationId: string) => Promise<readonly MemberView[]>;
+  readonly updateGroup: (conversationId: string, input: UpdateGroupInput) => Promise<void>;
+  readonly addMembers: (conversationId: string, userIds: readonly string[]) => Promise<void>;
+  readonly removeMember: (conversationId: string, userId: string) => Promise<void>;
+  readonly setMemberRole: (
+    conversationId: string,
+    userId: string,
+    role: 'admin' | 'member',
+  ) => Promise<void>;
+  readonly transferOwnership: (conversationId: string, userId: string) => Promise<void>;
+  /** Quitte le groupe. Refusé au propriétaire tant qu'il n'a pas transféré (#42). */
+  readonly leaveGroup: (conversationId: string) => Promise<void>;
+  readonly setPrefs: (conversationId: string, prefs: ConversationPrefs) => Promise<void>;
+  /**
+   * Crée un groupe localement et le met en file, dans une seule transaction.
+   *
+   * Retourne l'identifiant LOCAL — celui que l'appareil a généré. C'est aussi
+   * le `client_id` que le serveur retiendra, ce qui rend la création idempotente
+   * et permet d'ouvrir l'écran du groupe avant tout aller-retour réseau (#37).
+   */
+  readonly createGroup: (input: CreateGroupInput) => Promise<ConversationView>;
   readonly getConversation: (id: string) => Promise<ConversationView | null>;
   /** Avance le curseur de lecture. Monotone : ne recule jamais. */
   readonly markRead: (conversationId: string, upToSeq: number) => Promise<void>;
@@ -142,7 +202,15 @@ export type OutboxOperation =
   | 'delete_message'
   | 'add_reaction'
   | 'remove_reaction'
-  | 'mark_read';
+  | 'mark_read'
+  | 'create_group'
+  | 'update_group'
+  | 'add_members'
+  | 'remove_member'
+  | 'set_member_role'
+  | 'transfer_ownership'
+  | 'leave_group'
+  | 'set_conversation_prefs';
 
 export interface OutboxItem {
   readonly id: number;
