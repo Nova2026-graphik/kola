@@ -67,12 +67,21 @@ export const conversations = sqliteTable(
     pinnedAt: integer('pinned_at'),
     archivedAt: integer('archived_at'),
 
+    /**
+     * Date d'ouverture de l'écran de conversation, purement locale. Sert à
+     * ordonner la synchronisation (#53) : un groupe bavard qu'on ne lit jamais
+     * ne doit pas passer devant le fil consulté tous les jours.
+     */
+    lastOpenedAt: integer('last_opened_at'),
+
     /** La conversation n'existe pas encore côté serveur (créée hors ligne). */
     localOnly: integer('local_only', { mode: 'boolean' }).notNull().default(false),
   },
   (table) => [
     // Le tri de la liste des conversations, l'écran le plus consulté.
     index('conversations_last_message_at_idx').on(table.lastMessageAt),
+    // L'ordre de priorité de la synchronisation delta.
+    index('conversations_last_opened_at_idx').on(table.lastOpenedAt),
   ],
 );
 
@@ -236,8 +245,21 @@ export const outbox = sqliteTable(
  */
 export const syncState = sqliteTable('sync_state', {
   conversationId: text('conversation_id').primaryKey(),
+  /**
+   * Ancien curseur, sur `seq`. Conservé sans être lu : les migrations locales
+   * sont strictement additives. Il ne rattrapait pas les messages modifiés ou
+   * supprimés après leur émission — voir `lastChangeSeq`.
+   */
   lastSyncedSeq: integer('last_synced_seq').notNull().default(0),
+  /**
+   * Le curseur de la synchronisation delta (#53). Il n'avance qu'APRÈS
+   * l'écriture locale de la page, dans la même transaction : l'avancer avant
+   * perdrait définitivement les messages de la page en cas de coupure.
+   */
+  lastChangeSeq: integer('last_change_seq').notNull().default(0),
   lastSyncedAt: integer('last_synced_at'),
+  /** Date de la dernière remise à zéro forcée du curseur. Rare, et anormale. */
+  resetAt: integer('reset_at'),
 });
 
 /** Brouillon par conversation, restauré à la réouverture (#31). */

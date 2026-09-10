@@ -175,6 +175,35 @@ export const LOCAL_MIGRATIONS: readonly LocalMigration[] = [
       `alter table conversations add column last_message_kind text`,
     ],
   },
+  {
+    version: 3,
+    name: 'curseur de synchronisation delta',
+    statements: [
+      // `last_synced_seq` portait le curseur sur `seq`. Il ne rattrape pas les
+      // messages modifiés ou supprimés après leur émission : leur seq ne bouge
+      // pas, donc un curseur qui les a dépassés ne les reverra jamais. Le
+      // serveur porte désormais une suite d'écritures distincte (migration
+      // 20260910120012), et c'est elle qu'on suit.
+      //
+      // L'ancienne colonne est laissée en place : les migrations locales sont
+      // strictement additives, on ne supprime pas une colonne sur l'appareil
+      // d'un utilisateur.
+      `alter table sync_state add column last_change_seq integer not null default 0`,
+
+      // Un curseur remis à zéro doit être distinguable d'un curseur jamais
+      // utilisé : sans cela, une reprise après incohérence ressemblerait à une
+      // première synchronisation et le rapport mentirait.
+      `alter table sync_state add column reset_at integer`,
+
+      // « Priorité aux conversations récemment consultées » (#53). C'est la
+      // date d'OUVERTURE de l'écran, pas celle du dernier message : un groupe
+      // bavard qu'on ne lit jamais ne doit pas passer devant le fil qu'on
+      // consulte tous les jours.
+      `alter table conversations add column last_opened_at integer`,
+      `create index if not exists conversations_last_opened_at_idx
+         on conversations (last_opened_at)`,
+    ],
+  },
 ];
 
 /** Version cible de la base, déduite de la dernière migration déclarée. */
