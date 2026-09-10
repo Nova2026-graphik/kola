@@ -24,6 +24,9 @@ function conversation(overrides: Partial<ConversationView> = {}): ConversationVi
     mutedUntil: null,
     pinnedAt: null,
     archivedAt: null,
+    description: null,
+    restricted: false,
+    myRole: 'member',
     ...overrides,
   };
 }

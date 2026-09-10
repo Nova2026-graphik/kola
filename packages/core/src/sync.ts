@@ -1,5 +1,5 @@
 import type { Unsubscribe } from './repositories';
-import type { MessageKind } from './types';
+import type { MemberRole, MessageKind } from './types';
 
 /**
  * Contrat du transport de la file d'attente sortante.
@@ -77,9 +77,63 @@ export interface CreateGroupResult {
   readonly id: string;
 }
 
+// ---------------------------------------------------------------------------
+// Administration d'un groupe (#38, #39, #42)
+// ---------------------------------------------------------------------------
+
+export interface UpdateGroupPayload {
+  readonly conversationId: string;
+  readonly title?: string;
+  readonly description?: string | null;
+  readonly avatarUrl?: string | null;
+  readonly restricted?: boolean;
+}
+
+export interface AddMembersPayload {
+  readonly conversationId: string;
+  readonly userIds: readonly string[];
+}
+
+export interface MemberPayload {
+  readonly conversationId: string;
+  readonly userId: string;
+}
+
+export interface SetMemberRolePayload extends MemberPayload {
+  /** `owner` est impossible ici : la propriété se transfère (#39). */
+  readonly role: 'admin' | 'member';
+}
+
+export interface LeaveGroupPayload {
+  readonly conversationId: string;
+}
+
+/**
+ * Réglages par conversation.
+ *
+ * Ils vivent côté serveur et non seulement sur l'appareil : la sourdine doit
+ * s'appliquer à l'ENVOI de la notification (#58), pas seulement à son
+ * affichage. Envoyer une notification pour la masquer ensuite consommerait des
+ * données pour rien — ce qui est précisément ce que l'utilisateur cherchait à
+ * éviter en la mettant en sourdine.
+ */
+export interface ConversationPrefsPayload {
+  readonly conversationId: string;
+  readonly mutedUntil?: number | null;
+  readonly pinnedAt?: number | null;
+  readonly archivedAt?: number | null;
+}
+
 export interface OutboxTransport {
   readonly sendMessage: (payload: SendMessagePayload) => Promise<SendMessageResult>;
   readonly createGroup: (payload: CreateGroupPayload) => Promise<CreateGroupResult>;
+  readonly updateGroup: (payload: UpdateGroupPayload) => Promise<void>;
+  readonly addMembers: (payload: AddMembersPayload) => Promise<void>;
+  readonly removeMember: (payload: MemberPayload) => Promise<void>;
+  readonly setMemberRole: (payload: SetMemberRolePayload) => Promise<void>;
+  readonly transferOwnership: (payload: MemberPayload) => Promise<void>;
+  readonly leaveGroup: (payload: LeaveGroupPayload) => Promise<void>;
+  readonly setConversationPrefs: (payload: ConversationPrefsPayload) => Promise<void>;
   readonly editMessage: (payload: EditMessagePayload) => Promise<void>;
   readonly deleteMessage: (payload: DeleteMessagePayload) => Promise<void>;
   readonly markRead: (payload: MarkReadPayload) => Promise<void>;
@@ -181,6 +235,10 @@ export interface RemoteMessage {
 
 /** Une conversation telle que `conversation_overview` la rend. */
 export interface RemoteConversation {
+  readonly description: string | null;
+  readonly restricted: boolean;
+  /** Rôle de l'utilisateur courant. La vue le rend déjà (#15). */
+  readonly myRole: MemberRole;
   readonly id: string;
   readonly type: 'dm' | 'group' | 'channel';
   readonly title: string | null;
@@ -212,6 +270,17 @@ export interface MessagePageQueryRemote {
   readonly limit: number;
 }
 
+/** Un membre tel que le serveur le rend. */
+export interface RemoteMember {
+  readonly conversationId: string;
+  readonly userId: string;
+  readonly role: MemberRole;
+  readonly joinedAt: number;
+  readonly username: string | null;
+  readonly displayName: string | null;
+  readonly avatarUrl: string | null;
+}
+
 export interface SyncTransport {
   /** La liste des conversations de l'utilisateur, avec ses réglages. */
   readonly fetchConversations: () => Promise<readonly RemoteConversation[]>;
@@ -222,6 +291,14 @@ export interface SyncTransport {
    * page non triée le ferait sauter par-dessus des lignes non appliquées.
    */
   readonly fetchMessages: (query: MessagePageQueryRemote) => Promise<readonly RemoteMessage[]>;
+  /**
+   * Les membres d'une conversation, avec leur profil.
+   *
+   * Récupérés à l'OUVERTURE d'un fil, pas à chaque passe : la composition d'un
+   * groupe change rarement, et rapatrier les membres de cinquante conversations
+   * à chaque reprise coûterait bien plus que ce que ça rapporte (#38).
+   */
+  readonly fetchMembers: (conversationId: string) => Promise<readonly RemoteMember[]>;
 }
 
 /** Ce qu'une passe de synchronisation a rapporté. */

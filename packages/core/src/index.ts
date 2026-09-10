@@ -10,3 +10,4 @@ export * from './phone';
 export * from './otp';
 export * from './username';
 export * from './system-messages';
+export * from './permissions';

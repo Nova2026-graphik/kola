@@ -231,3 +231,110 @@ describe('création de groupe', () => {
     expect(db.select().from(conversationMembers).all()).toHaveLength(0);
   });
 });
+
+describe('administration d’un groupe', () => {
+  let db: LocalDatabase;
+  let repo: ConversationRepository;
+  let clock: ReturnType<typeof createClock>;
+
+  const CONV = 'g1';
+  const OWNER = 'u-owner';
+  const OTHER = 'u-other';
+
+  beforeEach(() => {
+    const test = createTestDatabase();
+    db = test.db;
+    clock = createClock();
+    repo = createConversationRepository({ db, now: clock.now });
+
+    db.insert(conversations)
+      .values({ id: CONV, type: 'group', title: 'Tontine', myRole: 'owner' })
+      .run();
+    db.insert(conversationMembers)
+      .values([
+        { conversationId: CONV, userId: OWNER, role: 'owner' },
+        { conversationId: CONV, userId: OTHER, role: 'member' },
+      ])
+      .run();
+
+    return () => {
+      test.close();
+    };
+  });
+
+  it('applique le changement de nom localement et le met en file', async () => {
+    await repo.updateGroup(CONV, { title: 'Tontine de Bè' });
+
+    expect((await repo.getConversation(CONV))?.title).toBe('Tontine de Bè');
+    expect(pending(db, clock.now())[0]?.operation).toBe('update_group');
+  });
+
+  it('refuse un nom vide sans rien mettre en file', async () => {
+    await expect(repo.updateGroup(CONV, { title: '   ' })).rejects.toThrow();
+    expect(pending(db, clock.now())).toHaveLength(0);
+  });
+
+  it('retire un membre sans effacer sa ligne', async () => {
+    await repo.removeMember(CONV, OTHER);
+
+    // Effacée tout de suite, la ligne reviendrait à la première synchronisation
+    // si le serveur refusait — ce qui ressemblerait à un bug plutôt qu'à un refus.
+    expect(db.select().from(conversationMembers).all()).toHaveLength(2);
+    expect(await repo.listMembers(CONV)).toHaveLength(1);
+  });
+
+  it('empêche le propriétaire de quitter le groupe', async () => {
+    // Le serveur refuserait de toute façon (#39) : l'arrêter ici évite une
+    // entrée en file vouée à l'échec définitif, et permet d'expliquer pourquoi.
+    await expect(repo.leaveGroup(CONV)).rejects.toThrow(/propriété/);
+    expect(pending(db, clock.now())).toHaveLength(0);
+  });
+
+  it('archive plutôt que de supprimer quand on quitte', async () => {
+    db.update(conversations).set({ myRole: 'member' }).run();
+
+    await repo.leaveGroup(CONV);
+
+    // L'historique reste lisible en local après le départ (#42).
+    expect((await repo.getConversation(CONV))?.archivedAt).not.toBeNull();
+    expect(await repo.listConversations()).toHaveLength(0);
+  });
+
+  it('bascule les deux rôles ensemble au transfert', async () => {
+    await repo.transferOwnership(CONV, OTHER);
+
+    const roles = new Map((await repo.listMembers(CONV)).map((m) => [m.userId, m.role]));
+    // Un état intermédiaire à deux propriétaires, ou à aucun, s'afficherait le
+    // temps de la synchronisation.
+    expect(roles.get(OWNER)).toBe('admin');
+    expect(roles.get(OTHER)).toBe('owner');
+    expect((await repo.getConversation(CONV))?.myRole).toBe('admin');
+  });
+
+  it('met la sourdine en file, parce qu’elle vit côté serveur', async () => {
+    await repo.setPrefs(CONV, { mutedUntil: clock.now() + 3600_000 });
+
+    // La sourdine doit empêcher l'ENVOI de la notification (#58), pas seulement
+    // son affichage : envoyer puis masquer consommerait des données pour rien.
+    const queued = pending(db, clock.now());
+    expect(queued[0]?.operation).toBe('set_conversation_prefs');
+    expect((await repo.getConversation(CONV))?.mutedUntil).toBe(clock.now() + 3600_000);
+  });
+
+  it('ne mélange pas deux ajouts de personnes différentes', async () => {
+    await repo.addMembers(CONV, ['a']);
+    await repo.addMembers(CONV, ['b']);
+
+    // La déduplication de la file porte sur (opération, entité) : sans les
+    // personnes dans la clé, le second ajout écraserait le premier.
+    expect(pending(db, clock.now())).toHaveLength(2);
+  });
+
+  it('ordonne les membres par rôle puis par ancienneté', async () => {
+    db.insert(conversationMembers)
+      .values({ conversationId: CONV, userId: 'u-admin', role: 'admin', joinedAt: 5 })
+      .run();
+
+    expect((await repo.listMembers(CONV)).map((m) => m.userId)).toEqual([OWNER, 'u-admin', OTHER]);
+  });
+});

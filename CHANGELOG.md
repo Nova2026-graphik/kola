@@ -97,6 +97,15 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
 - Messages système par trigger — création, arrivée, départ, retrait, changement de titre
   ou de photo, promotion — stockés en JSON structuré et traduits à l'affichage, jamais
   figés en français dans la base (#41)
+- Écran d'informations d'un groupe : composition, rôles, réglages, consultable hors ligne
+  depuis le cache local (#38)
+- Matrice des permissions à trois rôles, partagée entre le client et le serveur et vérifiée
+  contre la dérive par un test ; changement de rôle réservé au propriétaire, transfert de
+  propriété, mode restreint appliqué à l'écriture y compris par appel direct à l'API (#39)
+- Sourdine, épinglage, archivage et départ d'un groupe, tous applicables hors ligne et
+  propagés au serveur pour que la sourdine empêche l'envoi de la notification (#42)
+- ADR-0007 : pourquoi la matrice de permissions existe en double, et comment la dérive est
+  détectée (#39)
 
 ### Corrigé
 

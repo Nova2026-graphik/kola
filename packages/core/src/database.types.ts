@@ -1,5 +1,5 @@
 // Fichier généré par `pnpm db:types`. Ne pas modifier à la main.
-// migrations-hash: cd495b94e79b1c87
+// migrations-hash: d7c7461ff2a46890
 export type Json =
   | string
   | number
@@ -216,6 +216,7 @@ export type Database = {
           client_id: string | null
           community_id: string | null
           created_at: string
+          description: string | null
           dm_key: string | null
           id: string
           last_change_seq: number
@@ -225,6 +226,7 @@ export type Database = {
           last_message_sender_id: string | null
           last_seq: number
           owner_id: string | null
+          restricted: boolean
           title: string | null
           type: Database["public"]["Enums"]["conversation_type"]
         }
@@ -233,6 +235,7 @@ export type Database = {
           client_id?: string | null
           community_id?: string | null
           created_at?: string
+          description?: string | null
           dm_key?: string | null
           id?: string
           last_change_seq?: number
@@ -242,6 +245,7 @@ export type Database = {
           last_message_sender_id?: string | null
           last_seq?: number
           owner_id?: string | null
+          restricted?: boolean
           title?: string | null
           type: Database["public"]["Enums"]["conversation_type"]
         }
@@ -250,6 +254,7 @@ export type Database = {
           client_id?: string | null
           community_id?: string | null
           created_at?: string
+          description?: string | null
           dm_key?: string | null
           id?: string
           last_change_seq?: number
@@ -259,6 +264,7 @@ export type Database = {
           last_message_sender_id?: string | null
           last_seq?: number
           owner_id?: string | null
+          restricted?: boolean
           title?: string | null
           type?: Database["public"]["Enums"]["conversation_type"]
         }
@@ -553,6 +559,21 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          permission: string
+          role: Database["public"]["Enums"]["member_role"]
+        }
+        Insert: {
+          permission: string
+          role: Database["public"]["Enums"]["member_role"]
+        }
+        Update: {
+          permission?: string
+          role?: Database["public"]["Enums"]["member_role"]
+        }
+        Relationships: []
+      }
     }
     Views: {
       conversation_overview: {
@@ -561,6 +582,7 @@ export type Database = {
           avatar_url: string | null
           community_id: string | null
           created_at: string | null
+          description: string | null
           id: string | null
           last_change_seq: number | null
           last_message_at: string | null
@@ -572,6 +594,7 @@ export type Database = {
           muted_until: string | null
           owner_id: string | null
           pinned_at: string | null
+          restricted: boolean | null
           role: Database["public"]["Enums"]["member_role"] | null
           title: string | null
           type: Database["public"]["Enums"]["conversation_type"] | null
@@ -611,6 +634,10 @@ export type Database = {
         Returns: undefined
       }
       get_or_create_dm: { Args: { other_user_id: string }; Returns: string }
+      has_permission: {
+        Args: { conversation_id: string; permission: string }
+        Returns: boolean
+      }
       is_admin: { Args: { conversation_id: string }; Returns: boolean }
       is_blocked: { Args: { other_user_id: string }; Returns: boolean }
       is_blocked_in_conversation: {
@@ -622,6 +649,7 @@ export type Database = {
         Args: { target_conversation: string; up_to_seq: number }
         Returns: number
       }
+      ownership_transfer_in_progress: { Args: never; Returns: boolean }
       refresh_conversation_preview: {
         Args: { target_conversation: string }
         Returns: undefined
@@ -636,6 +664,10 @@ export type Database = {
         }[]
       }
       system_messages_suppressed: { Args: never; Returns: boolean }
+      transfer_ownership: {
+        Args: { new_owner: string; target_conversation: string }
+        Returns: undefined
+      }
       unread_count: { Args: { target_conversation: string }; Returns: number }
     }
     Enums: {

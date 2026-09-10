@@ -57,6 +57,19 @@ export const conversations = sqliteTable(
     lastMessageKind: text('last_message_kind', {
       enum: ['text', 'image', 'video', 'audio', 'file', 'system'],
     }),
+    description: text('description'),
+    /** Mode restreint : seuls les administrateurs écrivent (#39). */
+    restricted: integer('restricted', { mode: 'boolean' }).notNull().default(false),
+    /**
+     * Rôle de l'utilisateur courant dans cette conversation.
+     *
+     * Recopié depuis `conversation_members` pour que l'interface sache quoi
+     * proposer sans jointure, et surtout hors ligne. Il ne constitue jamais la
+     * sécurité : elle est portée par RLS (#14, #39).
+     */
+    myRole: text('my_role', { enum: ['owner', 'admin', 'member'] })
+      .notNull()
+      .default('member'),
     lastSeq: integer('last_seq').notNull().default(0),
     createdAt: integer('created_at').notNull().default(now),
 
@@ -95,6 +108,8 @@ export const conversationMembers = sqliteTable(
       .default('member'),
     lastReadSeq: integer('last_read_seq').notNull().default(0),
     joinedAt: integer('joined_at').notNull().default(now),
+    /** Retiré localement en attendant la confirmation du serveur. */
+    pendingRemoval: integer('pending_removal', { mode: 'boolean' }).notNull().default(false),
   },
   (table) => [
     primaryKey({ columns: [table.conversationId, table.userId] }),
@@ -281,3 +296,4 @@ export type NewLocalConversation = typeof conversations.$inferInsert;
 export type OutboxEntry = typeof outbox.$inferSelect;
 export type NewOutboxEntry = typeof outbox.$inferInsert;
 export type LocalDraft = typeof drafts.$inferSelect;
+export type LocalMember = typeof conversationMembers.$inferSelect;
