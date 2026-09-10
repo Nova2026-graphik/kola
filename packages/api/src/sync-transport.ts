@@ -1,7 +1,6 @@
 import type {
   MessagePageQueryRemote,
   RemoteConversation,
-  RemoteMember,
   RemoteMessage,
   SyncTransport,
 } from '@kola/core';
@@ -37,7 +36,7 @@ const MESSAGE_COLUMNS =
   'id, client_id, conversation_id, sender_id, seq, change_seq, kind, body, reply_to_id, edited_at, deleted_at, created_at';
 
 const CONVERSATION_COLUMNS =
-  'id, type, title, avatar_url, owner_id, community_id, last_message_at, last_message_preview, last_message_sender_id, last_message_kind, last_seq, last_change_seq, last_read_seq, muted_until, pinned_at, archived_at, created_at, description, restricted, role';
+  'id, type, title, avatar_url, owner_id, community_id, last_message_at, last_message_preview, last_message_sender_id, last_message_kind, last_seq, last_change_seq, last_read_seq, muted_until, pinned_at, archived_at, created_at';
 
 /** Les dates arrivent en ISO ; le schéma local les stocke en millisecondes. */
 function toMillis(value: string | null | undefined): number | null {
@@ -83,46 +82,7 @@ export function createSyncTransport(supabase: KolaClient): SyncTransport {
         pinnedAt: toMillis(row.pinned_at),
         archivedAt: toMillis(row.archived_at),
         createdAt: toMillis(row.created_at) ?? 0,
-        description: row.description,
-        restricted: row.restricted ?? false,
-        // La vue rend déjà le rôle de l'appelant : c'est ce qui permet à
-        // l'interface de savoir quoi proposer sans requête supplémentaire.
-        myRole: row.role ?? 'member',
       }));
-    },
-
-    fetchMembers: async (conversationId: string): Promise<readonly RemoteMember[]> => {
-      // Le profil est joint côté serveur : sans lui, l'écran d'infos
-      // afficherait une liste d'identifiants, et une requête par membre serait
-      // catastrophique sur un réseau lent (#38).
-      const { data, error } = await supabase
-        .from('conversation_members')
-        .select(
-          'conversation_id, user_id, role, joined_at, profiles(username, display_name, avatar_url)',
-        )
-        .eq('conversation_id', conversationId)
-        .order('joined_at', { ascending: true });
-
-      if (error) {
-        throw toTransportError(error);
-      }
-
-      return (data ?? []).map((row) => {
-        const profile = row.profiles as {
-          username: string | null;
-          display_name: string | null;
-          avatar_url: string | null;
-        } | null;
-        return {
-          conversationId: row.conversation_id,
-          userId: row.user_id,
-          role: row.role,
-          joinedAt: toMillis(row.joined_at) ?? 0,
-          username: profile?.username ?? null,
-          displayName: profile?.display_name ?? null,
-          avatarUrl: profile?.avatar_url ?? null,
-        };
-      });
     },
 
     fetchMessages: async (query: MessagePageQueryRemote): Promise<readonly RemoteMessage[]> => {

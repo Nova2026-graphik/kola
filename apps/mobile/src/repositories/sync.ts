@@ -1,10 +1,9 @@
 import { desc, eq, sql } from 'drizzle-orm';
 
-import type { RemoteConversation, RemoteMember, RemoteMessage } from '@kola/core';
+import type { RemoteConversation, RemoteMessage } from '@kola/core';
 
-import { conversationMembers, conversations, messages, profiles, syncState } from '../db/schema';
+import { conversations, messages, syncState } from '../db/schema';
 
-import { conversationChanges, messageChanges } from './changes';
 import type { LocalDatabase, Transaction } from './database';
 
 /**
@@ -79,10 +78,10 @@ export function applyMessagePage(
 
   const highest = page.reduce((max, message) => Math.max(max, message.changeSeq), 0);
 
-  const written = db.transaction((tx) => {
-    let count = 0;
+  return db.transaction((tx) => {
+    let written = 0;
     for (const message of page) {
-      count += upsertMessage(tx, message);
+      written += upsertMessage(tx, message);
     }
 
     tx.insert(syncState)
@@ -93,15 +92,8 @@ export function applyMessagePage(
       })
       .run();
 
-    return count;
+    return written;
   });
-
-  // Après la transaction, jamais dedans : un écouteur qui relit la base pendant
-  // l'écriture verrait un état intermédiaire, et une lecture réentrante dans
-  // une transaction synchrone est un piège sur `better-sqlite3`.
-  messageChanges.emit(conversationId);
-  conversationChanges.emit();
-  return written;
 }
 
 /**
@@ -147,28 +139,6 @@ function upsertMessage(tx: Transaction, message: RemoteMessage): number {
 }
 
 /**
- * Écrit un message reçu en temps réel (#50).
- *
- * La différence avec `applyMessagePage` tient en une ligne absente : **le
- * curseur ne bouge pas**. Realtime ne garantit ni la livraison ni l'ordre, donc
- * recevoir l'écriture n° 47 ne prouve pas qu'on a reçu la 46. Avancer le
- * curseur à 47 condamnerait la 46 à ne jamais être demandée — un message perdu
- * définitivement, sans que rien ne le signale.
- *
- * La ligne sera donc écrite deux fois : ici, tout de suite, pour la latence ;
- * puis par la passe delta, sur la même clé, pour la garantie. La seconde
- * écriture est sans effet visible — c'est le prix, et il est modique.
- */
-export function applyRealtimeMessage(db: LocalDatabase, message: RemoteMessage): void {
-  db.transaction((tx) => {
-    upsertMessage(tx, message);
-  });
-
-  messageChanges.emit(message.conversationId);
-  conversationChanges.emit();
-}
-
-/**
  * Écrit la liste des conversations venue du serveur.
  *
  * Les colonnes purement locales — `lastOpenedAt`, `localOnly` — ne figurent pas
@@ -183,7 +153,7 @@ export function applyConversations(
     return 0;
   }
 
-  const count = db.transaction((tx) => {
+  return db.transaction((tx) => {
     for (const conversation of remote) {
       tx.insert(conversations)
         .values({
@@ -203,9 +173,6 @@ export function applyConversations(
           pinnedAt: conversation.pinnedAt,
           archivedAt: conversation.archivedAt,
           createdAt: conversation.createdAt,
-          description: conversation.description,
-          restricted: conversation.restricted,
-          myRole: conversation.myRole,
           localOnly: false,
         })
         .onConflictDoUpdate({
@@ -221,9 +188,6 @@ export function applyConversations(
             lastMessageSenderId: conversation.lastMessageSenderId,
             lastMessageKind: conversation.lastMessageKind,
             lastSeq: conversation.lastSeq,
-            description: conversation.description,
-            restricted: conversation.restricted,
-            myRole: conversation.myRole,
             mutedUntil: conversation.mutedUntil,
             pinnedAt: conversation.pinnedAt,
             archivedAt: conversation.archivedAt,
@@ -239,9 +203,6 @@ export function applyConversations(
     }
     return remote.length;
   });
-
-  conversationChanges.emit();
-  return count;
 }
 
 /**
@@ -311,59 +272,4 @@ export function lastSyncedAt(db: LocalDatabase): number | null {
     .get();
 
   return row?.at ?? null;
-}
-
-/**
- * Écrit la composition d'une conversation venue du serveur (#38).
- *
- * Remplacement complet plutôt que fusion : un membre parti côté serveur doit
- * disparaître ici, et une fusion ne saurait pas le distinguer d'un membre
- * simplement absent de la page. La liste est courte par nature — un groupe, pas
- * un annuaire — donc le remplacement ne coûte rien.
- *
- * Les profils sont écrits au passage : sans eux, l'écran d'infos afficherait
- * une liste d'identifiants.
- */
-export function applyMembers(
-  db: LocalDatabase,
-  conversationId: string,
-  remote: readonly RemoteMember[],
-): number {
-  db.transaction((tx) => {
-    tx.delete(conversationMembers)
-      .where(eq(conversationMembers.conversationId, conversationId))
-      .run();
-
-    for (const member of remote) {
-      tx.insert(conversationMembers)
-        .values({
-          conversationId,
-          userId: member.userId,
-          role: member.role,
-          joinedAt: member.joinedAt,
-        })
-        .onConflictDoNothing()
-        .run();
-
-      tx.insert(profiles)
-        .values({
-          id: member.userId,
-          username: member.username,
-          displayName: member.displayName,
-          avatarUrl: member.avatarUrl,
-        })
-        .onConflictDoUpdate({
-          target: profiles.id,
-          set: {
-            username: member.username,
-            displayName: member.displayName,
-            avatarUrl: member.avatarUrl,
-          },
-        })
-        .run();
-    }
-  });
-
-  conversationChanges.emit();
-  return remote.length;
 }

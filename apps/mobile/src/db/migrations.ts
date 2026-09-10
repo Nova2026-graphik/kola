@@ -204,21 +204,6 @@ export const LOCAL_MIGRATIONS: readonly LocalMigration[] = [
          on conversations (last_opened_at)`,
     ],
   },
-  {
-    version: 4,
-    name: 'rôles et réglages de groupe',
-    statements: [
-      `alter table conversations add column description text`,
-      `alter table conversations add column restricted integer not null default 0`,
-      // Le rôle de l'utilisateur courant, recopié pour que l'écran d'infos
-      // sache quoi proposer sans jointure et surtout hors ligne (#38, #39).
-      `alter table conversations add column my_role text not null default 'member'`,
-      // Un retrait posé hors ligne : la ligne reste, marquée, jusqu'à ce que le
-      // serveur confirme. La supprimer tout de suite la ferait réapparaître à
-      // la première synchronisation, ce qui ressemblerait à un bug.
-      `alter table conversation_members add column pending_removal integer not null default 0`,
-    ],
-  },
 ];
 
 /** Version cible de la base, déduite de la dernière migration déclarée. */

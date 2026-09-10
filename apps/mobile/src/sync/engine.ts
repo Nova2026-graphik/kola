@@ -9,7 +9,6 @@ import {
 import type { LocalDatabase } from '../repositories/database';
 import {
   applyConversations,
-  applyMembers,
   applyMessagePage,
   listSyncTargets,
   resetCursor,
@@ -221,25 +220,6 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
         conversationId: target.conversationId,
         remaining: targets.length - index,
       });
-
-      // La composition n'est rapatriée que pour la conversation explicitement
-      // demandée — celle dont l'écran vient de s'ouvrir. La ramener pour les
-      // cinquante fils de l'utilisateur à chaque passe coûterait bien plus que
-      // ce que ça rapporte : un groupe change rarement de membres (#38).
-      //
-      // AVANT le raccourci ci-dessous : un membre ajouté ou retiré ne fait pas
-      // avancer `change_seq`, qui ne compte que les écritures de messages. Un
-      // groupe calme sauterait donc éternellement la mise à jour de sa
-      // composition, et l'écran d'infos afficherait une liste périmée.
-      if (only !== undefined) {
-        try {
-          applyMembers(db, target.conversationId, await transport.fetchMembers(only));
-        } catch {
-          // Sans conséquence : l'écran d'infos affichera la composition connue
-          // localement, ce qui est exactement son comportement hors ligne.
-          failed += 1;
-        }
-      }
 
       let effective = target;
       if (needsReset(target)) {

@@ -5,5 +5,3 @@ export * from './secure-storage';
 export * from './outbox-transport';
 export * from './transport-errors';
 export * from './sync-transport';
-export * from './realtime';
-export * from './profiles';
