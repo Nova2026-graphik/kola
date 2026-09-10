@@ -31,7 +31,7 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
   aucune table sans RLS, aucune fonction `SECURITY DEFINER` exécutable par `anon` (#14)
 - Aperçu dénormalisé et compteurs de non-lus à coût constant, vue
   `conversation_overview` (#15)
-- Base Supabase locale et suite de 89 tests pgTAP (`pnpm db:reset`, `pnpm db:test`)
+- Base Supabase locale et suite de tests pgTAP (`pnpm db:reset`, `pnpm db:test`)
 - Base SQLite locale, schéma Drizzle miroir du schéma serveur, migrations locales
   versionnées et atomiques (#27)
 - `MessageRepository` et `ConversationRepository` : lecture locale, écriture locale puis
@@ -62,9 +62,32 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
   jamais désactivé même hors ligne (#31)
 - Envoi optimiste et cinq états d'acheminement distincts — en attente, envoyé, reçu, lu,
   échec — avec relance manuelle et bandeau récapitulatif (#32)
+- Connexion par numéro de téléphone avec OTP SMS, indicatif +228 par défaut et
+  normalisation E.164 tolérante aux formes réellement tapées (#19)
+- Connexion par adresse e-mail avec code à six chiffres, sans lien à ouvrir (#20)
+- Écran de saisie du code : vérification automatique au sixième chiffre, renvoi avec
+  compte à rebours croissant, remplissage automatique (#21)
+- Création du profil : pseudo unique vérifié en direct, nom affiché, avatar généré à
+  partir des initiales (#22)
+- Session persistante dans un stockage chiffré, découpée sous la limite de 2048 octets
+  d'Android, avec rafraîchissement automatique (#23)
+- Transport de la file d'attente sur PostgREST : idempotence par relecture du message
+  existant, traduction des codes Postgres en erreurs transitoires ou définitives (#54)
+- Chaîne de synchronisation câblée de bout en bout — transport, moteur, ordonnanceur,
+  détecteur réseau (#54, #55)
+- Projet Supabase de développement `kola-dev` en région `eu-west-3`, les onze migrations
+  appliquées et vérifiées par les advisors de sécurité (#7)
+- Sixième fichier pgTAP : privilèges d'exécution des fonctions `SECURITY DEFINER`, avec
+  la règle inverse — ce que `authenticated` doit rester capable d'appeler (#14)
 
 ### Corrigé
 
+- Les huit fonctions de trigger `SECURITY DEFINER` étaient exécutables par `anon` : le
+  `ALTER DEFAULT PRIVILEGES` de Supabase les exposait, et le garde-fou de #14 les excluait
+  parce que PostgreSQL refuse leur appel direct. Révoquées quand même — huit
+  avertissements permanents dans le rapport d'advisors, et le neuvième passe inaperçu (#14)
+- `messages.seq` n'était pas omissible à l'insertion, alors que c'est un trigger qui
+  l'attribue : le client ne pouvait pas insérer de message sans inventer une valeur (#10)
 - La suppression logique d'un message était impossible au-delà de quinze minutes : la
   contrainte de corps obligatoire et la fenêtre de modification se contredisaient. La
   suppression pour tous (#34) et la modération (#66) en dépendaient (#14)

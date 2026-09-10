@@ -1,5 +1,5 @@
 // Fichier généré par `pnpm db:types`. Ne pas modifier à la main.
-// migrations-hash: 894824b95eb2bb83
+// migrations-hash: f0a773761432d85b
 export type Json =
   | string
   | number
@@ -336,7 +336,7 @@ export type Database = {
           kind?: Database["public"]["Enums"]["message_kind"]
           reply_to_id?: string | null
           sender_id?: string | null
-          seq: number
+          seq?: number
         }
         Update: {
           body?: string | null

@@ -46,6 +46,11 @@ export interface MarkReadPayload {
 export interface ReactionPayload {
   readonly messageId: string;
   readonly emoji: string;
+  /**
+   * Exigé par la policy RLS de `reactions` : on ne réagit que sous sa propre
+   * identité (#14). Le serveur refuserait une insertion signée d'un autre.
+   */
+  readonly userId: string;
 }
 
 /** Ce que le serveur attribue à un message : c'est lui qui fait foi. */
