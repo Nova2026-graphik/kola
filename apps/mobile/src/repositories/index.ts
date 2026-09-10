@@ -6,6 +6,7 @@ import { getDatabase } from '../db/client';
 
 import { createConversationRepository } from './conversations';
 import type { LocalDatabase } from './database';
+import { createDraftRepository, type DraftRepository } from './drafts';
 import { createMessageRepository } from './messages';
 
 /**
@@ -19,6 +20,7 @@ import { createMessageRepository } from './messages';
 export interface Repositories {
   readonly messages: MessageRepository;
   readonly conversations: ConversationRepository;
+  readonly drafts: DraftRepository;
 }
 
 let instance: Repositories | null = null;
@@ -32,6 +34,7 @@ export function createRepositories(db: LocalDatabase): Repositories {
   return {
     messages: createMessageRepository({ db, newId }),
     conversations: createConversationRepository({ db }),
+    drafts: createDraftRepository({ db }),
   };
 }
 
@@ -56,6 +59,8 @@ export function resetRepositories(): void {
 }
 
 export { createConversationRepository } from './conversations';
+export { createDraftRepository, clearDraftIn } from './drafts';
+export type { Draft, DraftRepository } from './drafts';
 export { createMessageRepository, countUnsent } from './messages';
 export type { LocalDatabase, RepositoryOptions } from './database';
 export * as outbox from './outbox';

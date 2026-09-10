@@ -1,14 +1,25 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatConversationTimestamp } from '@kola/core';
 
 import { OfflineBanner } from '../../../src/components/OfflineBanner';
+import { Composer } from '../../../src/features/messages/Composer';
 import type { FeedItem } from '../../../src/features/messages/grouping';
 import { MessageBubble } from '../../../src/features/messages/MessageBubble';
+import { PendingBanner } from '../../../src/features/messages/PendingBanner';
 import { useMessageFeed } from '../../../src/features/messages/useMessageFeed';
+import { useUnsentCounts } from '../../../src/features/messages/useUnsentCounts';
 import { useCurrentUserId, useProfiles } from '../../../src/features/profiles/useProfiles';
 import { useNow } from '../../../src/hooks/useNow';
 import { getRepositories } from '../../../src/repositories';
@@ -32,6 +43,7 @@ export default function ConversationScreen(): React.JSX.Element {
   // Instant stable : `Date.now()` au rendu le rendrait impur et casserait la
   // mémoïsation des bulles.
   const now = useNow();
+  const unsent = useUnsentCounts(id);
 
   const { items, isLoading, hasMore, initialIndex, loadMore } = useMessageFeed({
     conversationId: id,
@@ -101,26 +113,36 @@ export default function ConversationScreen(): React.JSX.Element {
       </View>
 
       <OfflineBanner />
+      <PendingBanner pendingCount={unsent.pending} failedCount={unsent.failed} />
 
-      <FlatList
-        data={items}
-        keyExtractor={keyOf}
-        renderItem={renderItem}
-        // L'ancrage en bas sans calcul de position.
-        inverted
-        initialScrollIndex={initialIndex > 0 ? initialIndex : undefined}
-        // « onEndReached » sur une liste inversée signifie « on remonte vers le
-        // passé » : c'est là que se charge la page suivante.
-        onEndReached={hasMore ? loadMore : undefined}
-        onEndReachedThreshold={0.4}
-        removeClippedSubviews
-        initialNumToRender={20}
-        maxToRenderPerBatch={12}
-        windowSize={9}
-        keyboardShouldPersistTaps="handled"
-        ListEmptyComponent={isLoading ? null : <EmptyConversation />}
-        contentContainerStyle={items.length === 0 ? styles.emptyContainer : styles.content}
-      />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={insets.top}
+      >
+        <FlatList
+          data={items}
+          keyExtractor={keyOf}
+          renderItem={renderItem}
+          // L'ancrage en bas sans calcul de position.
+          inverted
+          initialScrollIndex={initialIndex > 0 ? initialIndex : undefined}
+          // « onEndReached » sur une liste inversée signifie « on remonte vers le
+          // passé » : c'est là que se charge la page suivante.
+          onEndReached={hasMore ? loadMore : undefined}
+          onEndReachedThreshold={0.4}
+          removeClippedSubviews
+          initialNumToRender={20}
+          maxToRenderPerBatch={12}
+          windowSize={9}
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={isLoading ? null : <EmptyConversation />}
+          contentContainerStyle={items.length === 0 ? styles.emptyContainer : styles.content}
+        />
+
+        {/* Le composeur ne se désactive jamais, pas même hors ligne. */}
+        <Composer conversationId={id} senderId={currentUserId} />
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -141,6 +163,9 @@ function EmptyConversation(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
