@@ -58,6 +58,10 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
   date, groupement des salves, marqueur de nouveaux messages (#30)
 - Formatage des dates, initiales et recherche, écrit à la main pour épargner les
   dizaines de kilooctets d'une bibliothèque de dates (#29, #30)
+- Composeur : saisie multi-ligne, émoji système, brouillon persistant par conversation,
+  jamais désactivé même hors ligne (#31)
+- Envoi optimiste et cinq états d'acheminement distincts — en attente, envoyé, reçu, lu,
+  échec — avec relance manuelle et bandeau récapitulatif (#32)
 
 ### Corrigé
 
