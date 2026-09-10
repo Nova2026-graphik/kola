@@ -38,14 +38,6 @@ export function useProfiles(): ReadonlyMap<string, ProfileSummary> {
   return profiles;
 }
 
-/**
- * Identifiant de l'utilisateur courant.
- *
- * Provisoire : la session réelle arrive avec la persistance d'authentification
- * (#23). Tant qu'elle n'existe pas, cet écran ne peut pas savoir qui il est —
- * le signaler franchement vaut mieux qu'une valeur inventée qui donnerait
- * l'illusion de fonctionner.
- */
-export function useCurrentUserId(): string | null {
-  return null;
-}
+// `useCurrentUserId` vivait ici en provisoire ; il vient maintenant de la
+// session réelle (#23).
+export { useCurrentUserId } from '../auth/session';

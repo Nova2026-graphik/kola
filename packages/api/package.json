@@ -15,7 +15,8 @@
     "clean": "rimraf .turbo *.tsbuildinfo"
   },
   "dependencies": {
-    "@kola/core": "workspace:*"
+    "@kola/core": "workspace:*",
+    "@supabase/supabase-js": "^2.116.0"
   },
   "devDependencies": {
     "typescript": "~5.9.2"
