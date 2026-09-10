@@ -1,11 +1,12 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { openDatabase } from '../src/db/client';
+import { initSession, useSessionStatus } from '../src/features/auth/session';
 import { initRepositories } from '../src/repositories';
 
 /**
@@ -47,6 +48,16 @@ function bootstrap(): BootState {
 export default function RootLayout(): React.JSX.Element {
   const [boot] = useState<BootState>(bootstrap);
 
+  useEffect(() => {
+    if (boot.status !== 'ready') {
+      return;
+    }
+    // Asynchrone et non bloquante : l'interface s'affiche pendant ce temps,
+    // depuis la base locale. Une session absente ou expirée ne doit jamais
+    // empêcher de lire l'historique déjà synchronisé (ADR-0002).
+    void initSession();
+  }, [boot.status]);
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
@@ -54,14 +65,46 @@ export default function RootLayout(): React.JSX.Element {
         {boot.status === 'failed' ? (
           <BootError message={boot.error} />
         ) : (
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(app)" />
-            <Stack.Screen name="(auth)" />
-          </Stack>
+          <>
+            <AuthGate />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(app)" />
+              <Stack.Screen name="(auth)" />
+            </Stack>
+          </>
         )}
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+/**
+ * Redirige vers l'authentification, ou vers l'application.
+ *
+ * Ne rend rien : il n'observe que la session et le segment courant. Tant que la
+ * session est en cours de restauration, il ne fait rien — rediriger trop tôt
+ * ferait clignoter l'écran de connexion à chaque ouverture.
+ */
+function AuthGate(): null {
+  const status = useSessionStatus();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === 'loading') {
+      return;
+    }
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (status === 'anonymous' && !inAuthGroup) {
+      router.replace('/connexion');
+    } else if (status === 'authenticated' && inAuthGroup) {
+      router.replace('/');
+    }
+  }, [router, segments, status]);
+
+  return null;
 }
 
 function BootError({ message }: { readonly message: string }): React.JSX.Element {
