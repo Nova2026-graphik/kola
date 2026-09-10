@@ -48,4 +48,14 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
   retour de la connexion (#55)
 - Bandeau d'état réseau, informatif et non bloquant : le composeur reste toujours
   actif (#55)
+- Types TypeScript générés depuis le schéma Postgres, avec vérification de fraîcheur en
+  CI par empreinte des migrations (#16)
+- Jeu de données de démonstration, cas limites et conversation de 5 000 messages
+  compris (#17)
+
+### Corrigé
+
+- La suppression logique d'un message était impossible au-delà de quinze minutes : la
+  contrainte de corps obligatoire et la fenêtre de modification se contredisaient. La
+  suppression pour tous (#34) et la modération (#66) en dépendaient (#14)
 
