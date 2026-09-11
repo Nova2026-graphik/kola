@@ -1,0 +1,69 @@
+name: Mise à jour à distance
+
+# Pousse le JavaScript et les assets sur les applications déjà installées (#78).
+#
+# Deux canaux, deux déclencheurs, et la règle qui les sépare : `develop` va sur
+# le canal `preview`, que l'équipe utilise au quotidien ; `main` va sur
+# `production`, que le public reçoit. Ne jamais les confondre — une mise à jour
+# poussée par erreur en production atteint tout le monde en quelques secondes et
+# ne se rattrape qu'en publiant la suivante.
+
+on:
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+    inputs:
+      canal:
+        description: 'Canal visé'
+        required: true
+        default: preview
+        type: choice
+        options: [preview, production]
+
+concurrency:
+  # Deux publications simultanées sur le même canal laisseraient le parc dans un
+  # état indéterminé : la dernière arrivée gagne, sans qu'on sache laquelle.
+  group: update-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    # Une mise à jour à distance contourne la revue des stores : elle atteint les
+    # appareils sans filet. Les vérifications ne sont donc pas une formalité —
+    # c'est le seul filet qui reste.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Vérifications
+        run: |
+          pnpm format:check
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publier sur le canal
+        working-directory: apps/mobile
+        env:
+          CANAL: ${{ inputs.canal || (github.ref == 'refs/heads/main' && 'production' || 'preview') }}
+        run: |
+          eas update \
+            --channel "$CANAL" \
+            --message "${{ github.event.head_commit.message || github.sha }}" \
+            --non-interactive

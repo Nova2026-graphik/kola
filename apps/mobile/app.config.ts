@@ -26,16 +26,39 @@ const config: ExpoConfig = {
   /**
    * Mises à jour à distance (#78).
    *
-   * `fingerprint` plutôt qu'`appVersion` : la version d'exécution est calculée
-   * à partir du projet natif lui-même. Ajouter une dépendance native change
-   * l'empreinte, donc les applications déjà installées cessent d'être éligibles
-   * à cette mise à jour et gardent la leur, au lieu de télécharger un JavaScript
-   * qui appellerait un module absent et planterait au démarrage.
+   * `runtimeVersion` dit à quel NATIF un paquet JavaScript est compatible. Une
+   * mise à jour n'atteint que les applications dont la version d'exécution est
+   * identique — c'est ce qui empêche d'envoyer un JavaScript qui appellerait un
+   * module natif absent, et de transformer un correctif en parc qui ne démarre
+   * plus.
    *
-   * C'est la différence entre une mise à jour qui ne s'applique pas — visible,
-   * réparable par un nouveau build — et un parc d'appareils qui ne démarre plus.
+   * Trois façons de la fixer ; on prend la troisième.
+   *
+   * `fingerprint` la calcule depuis le projet natif, ce qui invalide
+   * automatiquement les mises à jour quand une dépendance native change. C'est
+   * séduisant, et c'est ce qui était configuré d'abord. Le build l'a rejeté :
+   * « Runtime version calculated on local machine not equal to runtime version
+   * calculated during build ». L'empreinte hache le contenu de `node_modules`,
+   * que pnpm n'installe pas à l'identique sur un poste Windows et sur le
+   * serveur Linux d'EAS. La concordance n'est donc pas garantie, et un build
+   * lancé depuis un poste de développement échoue systématiquement.
+   *
+   * `appVersion` la lie à `version`. Écarté pour la raison inverse : on
+   * incrémente `version` à chaque livraison, y compris purement JavaScript, et
+   * chaque incrément couperait les applications installées de toutes les mises
+   * à jour suivantes. La version commerciale et la compatibilité native n'ont
+   * aucune raison d'avancer ensemble.
+   *
+   * Une valeur EXPLICITE sépare les deux. Elle ne bouge que lorsque le natif
+   * change — nouvelle dépendance native, montée de SDK Expo, changement de
+   * `expo-build-properties`. Tant qu'elle ne bouge pas, une correction part sur
+   * les appareils déjà installés sans nouveau build.
+   *
+   * RÈGLE : incrémenter cette valeur dans le même commit que le changement
+   * natif, et reconstruire. Une mise à jour publiée après un changement natif
+   * sans incrément est le seul scénario qui casse un appareil à distance.
    */
-  runtimeVersion: { policy: 'fingerprint' },
+  runtimeVersion: '1',
 
   updates: {
     url: 'https://u.expo.dev/c47eb463-3f64-436b-ade3-2c50a9d9b24d',
