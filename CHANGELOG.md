@@ -106,6 +106,13 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
   propagés au serveur pour que la sourdine empêche l'envoi de la notification (#42)
 - ADR-0007 : pourquoi la matrice de permissions existe en double, et comment la dérive est
   détectée (#39)
+- Profils EAS Build `development`, `preview` et `production` ; projet EAS créé sous le
+  compte d'équipe, identifiants Android générés côté serveur (#75, #76)
+- Mises à jour à distance par canal : un push sur `develop` atteint les applications
+  installées de l'équipe, un push sur `main` celles du public, après passage des
+  vérifications (#78)
+- `docs/livraison.md` : ce qui exige un nouveau build et ce qui passe en mise à jour, et
+  pourquoi `runtimeVersion` est fixée explicitement plutôt que par empreinte
 
 ### Corrigé
 
