@@ -79,7 +79,7 @@ les appareils sans filet, donc ces vérifications sont le seul filet qui reste.
 À la main, depuis `apps/mobile` :
 
 ```bash
-npx eas-cli@latest update --channel preview --message "ce que ça corrige"
+npx eas-cli@latest update --channel preview --environment preview --message "ce que ça corrige"
 ```
 
 Le secret `EXPO_TOKEN` doit exister dans les secrets du dépôt GitHub pour que le
