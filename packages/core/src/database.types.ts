@@ -1,5 +1,5 @@
 // Fichier généré par `pnpm db:types`. Ne pas modifier à la main.
-// migrations-hash: 28ba83e279d1eba8
+// migrations-hash: d7c7461ff2a46890
 export type Json =
   | string
   | number
@@ -582,6 +582,7 @@ export type Database = {
           avatar_url: string | null
           community_id: string | null
           created_at: string | null
+          description: string | null
           id: string | null
           last_change_seq: number | null
           last_message_at: string | null

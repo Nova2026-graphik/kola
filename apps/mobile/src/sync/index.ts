@@ -8,3 +8,6 @@ export { createSyncEngine } from './engine';
 export type { SyncEngine, SyncEngineOptions, SyncEngineState, SyncPhase } from './engine';
 
 export { publishSyncState, useIsSyncing, useSyncRemaining, useSyncStore } from './store';
+
+export { createRealtimeBridge } from './realtime';
+export type { RealtimeBridge, RealtimeBridgeOptions } from './realtime';

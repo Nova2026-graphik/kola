@@ -235,6 +235,10 @@ export interface RemoteMessage {
 
 /** Une conversation telle que `conversation_overview` la rend. */
 export interface RemoteConversation {
+  readonly description: string | null;
+  readonly restricted: boolean;
+  /** Rôle de l'utilisateur courant. La vue le rend déjà (#15). */
+  readonly myRole: MemberRole;
   readonly id: string;
   readonly type: 'dm' | 'group' | 'channel';
   readonly title: string | null;
@@ -266,6 +270,17 @@ export interface MessagePageQueryRemote {
   readonly limit: number;
 }
 
+/** Un membre tel que le serveur le rend. */
+export interface RemoteMember {
+  readonly conversationId: string;
+  readonly userId: string;
+  readonly role: MemberRole;
+  readonly joinedAt: number;
+  readonly username: string | null;
+  readonly displayName: string | null;
+  readonly avatarUrl: string | null;
+}
+
 export interface SyncTransport {
   /** La liste des conversations de l'utilisateur, avec ses réglages. */
   readonly fetchConversations: () => Promise<readonly RemoteConversation[]>;
@@ -276,6 +291,14 @@ export interface SyncTransport {
    * page non triée le ferait sauter par-dessus des lignes non appliquées.
    */
   readonly fetchMessages: (query: MessagePageQueryRemote) => Promise<readonly RemoteMessage[]>;
+  /**
+   * Les membres d'une conversation, avec leur profil.
+   *
+   * Récupérés à l'OUVERTURE d'un fil, pas à chaque passe : la composition d'un
+   * groupe change rarement, et rapatrier les membres de cinquante conversations
+   * à chaque reprise coûterait bien plus que ce que ça rapporte (#38).
+   */
+  readonly fetchMembers: (conversationId: string) => Promise<readonly RemoteMember[]>;
 }
 
 /** Ce qu'une passe de synchronisation a rapporté. */
@@ -302,3 +325,55 @@ export const EMPTY_SYNC_REPORT: SyncReport = {
 
 /** Taille d'une page de synchronisation. */
 export const SYNC_PAGE_SIZE = 200;
+
+// ---------------------------------------------------------------------------
+// Temps réel — une optimisation de latence, pas une source de vérité
+// ---------------------------------------------------------------------------
+
+/**
+ * Contrat d'abonnement au temps réel (#50).
+ *
+ * Volontairement minimal : trois rappels, et pas la moindre notion de canal, de
+ * filtre ou d'état de connexion. Tout ce que le pont a besoin de savoir, c'est
+ * qu'un message est arrivé, que la connexion vient de s'établir — donc qu'il
+ * faut rattraper — ou qu'elle a échoué.
+ *
+ * Cette pauvreté est le but. Elle rend le pont testable sans réseau ni
+ * WebSocket, et elle laisse la reconnexion, sa temporisation et ses plafonds
+ * entièrement du côté de l'implémentation.
+ */
+export interface RealtimeHandlers {
+  /** Une insertion ou une modification est arrivée. */
+  readonly onMessage: (message: RemoteMessage) => void;
+  /**
+   * Le canal vient de s'établir — première connexion comme reconnexion.
+   *
+   * C'est le signal de rattrapage : ce qui s'est passé avant l'établissement du
+   * canal n'a été livré à personne.
+   */
+  readonly onConnected: () => void;
+  readonly onError: (error: unknown) => void;
+}
+
+export interface RealtimeSubscriber {
+  /** Ouvre un canal. Retourne de quoi le fermer. */
+  readonly subscribe: (conversationId: string, handlers: RealtimeHandlers) => Unsubscribe;
+}
+
+/**
+ * Temporisation de reconnexion, plafonnée.
+ *
+ * Sur réseau instable, une reconnexion en boucle consomme plus de données que
+ * le trafic utile — et vide la batterie. Le plafond compte donc autant que la
+ * croissance. La part d'aléatoire évite que tous les appareils d'une même
+ * coupure de réseau ne reviennent à la même seconde.
+ */
+export const REALTIME_RETRY_BASE_MS = 1_000;
+export const REALTIME_RETRY_CAP_MS = 60_000;
+
+export function realtimeRetryDelay(attempt: number, random: () => number = Math.random): number {
+  const exponential = REALTIME_RETRY_BASE_MS * 2 ** Math.max(0, attempt - 1);
+  const capped = Math.min(exponential, REALTIME_RETRY_CAP_MS);
+  // Jusqu'à 30 % de moins, jamais plus : le plafond doit rester un plafond.
+  return Math.round(capped * (1 - 0.3 * random()));
+}
