@@ -114,6 +114,28 @@ const config: ExpoConfig = {
           // tester en build release et pas seulement en développement (#76).
           enableProguardInReleaseBuilds: true,
           enableShrinkResourcesInReleaseBuilds: true,
+
+          /**
+           * Seules les deux architectures ARM.
+           *
+           * Le premier APK de test pesait 102 Mo, dont 79,5 Mo de
+           * bibliothèques natives réparties sur quatre architectures. x86 et
+           * x86_64 en représentaient 43,7 Mo à elles deux — et ne servent qu'à
+           * un émulateur, jamais à un téléphone.
+           *
+           * Sur un forfait facturé au mégaoctet, faire télécharger la moitié
+           * d'un APK pour du code qui ne s'exécutera jamais est exactement ce
+           * que le budget de performance interdit (ADR-0006).
+           *
+           * `armeabi-v7a` est conservée : le parc visé est de l'entrée de
+           * gamme, et le plancher Android 9 laisse passer des appareils 32
+           * bits. La retirer gagnerait 14,5 Mo au prix de l'exclusion
+           * silencieuse d'une partie des utilisateurs — le mauvais échange.
+           *
+           * Le développement sur émulateur passe par `expo start`, qui ne
+           * dépend pas de ces bibliothèques.
+           */
+          buildArchs: ['arm64-v8a', 'armeabi-v7a'],
         },
       },
     ],
