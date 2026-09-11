@@ -24,7 +24,7 @@ import { useUnsentCounts } from '../../../src/features/messages/useUnsentCounts'
 import { useCurrentUserId, useProfiles } from '../../../src/features/profiles/useProfiles';
 import { useNow } from '../../../src/hooks/useNow';
 import { getRepositories } from '../../../src/repositories';
-import { openConversation } from '../../../src/sync/bootstrap';
+import { closeConversation, openConversation } from '../../../src/sync/bootstrap';
 
 /**
  * Écran de conversation (#30).
@@ -58,7 +58,23 @@ export default function ConversationScreen(): React.JSX.Element {
   // rien — l'écran s'affiche sur la base locale.
   useEffect(() => {
     openConversation(id);
+    return () => {
+      // Quitter l'écran ferme le canal : maintenir cinquante abonnements pour
+      // des fils que personne ne regarde épuiserait batterie et forfait (#50).
+      closeConversation(id);
+    };
   }, [id]);
+
+  const resolveName = useCallback(
+    (userId: string | null): string | null => {
+      if (userId === null) {
+        return null;
+      }
+      const profile = profiles.get(userId);
+      return profile?.displayName ?? profile?.username ?? null;
+    },
+    [profiles],
+  );
 
   const retry = useCallback((clientId: string) => {
     void getRepositories().messages.retryMessage(clientId);
