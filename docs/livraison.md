@@ -25,7 +25,7 @@ d'envoyer du JavaScript qui appellerait un module natif absent de l'application
 installée — et de transformer un correctif en parc d'appareils qui ne démarre
 plus.
 
-Elle est fixée **explicitement** dans `app.config.ts`, actuellement à `'1'`.
+Elle est fixée **explicitement** dans `app.config.ts`, actuellement à `'2'`.
 
 Trois façons de la fixer existaient. Le choix mérite d'être connu, parce que les
 deux autres ont chacune un défaut précis.

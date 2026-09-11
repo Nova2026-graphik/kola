@@ -58,7 +58,12 @@ const config: ExpoConfig = {
    * natif, et reconstruire. Une mise à jour publiée après un changement natif
    * sans incrément est le seul scénario qui casse un appareil à distance.
    */
-  runtimeVersion: '1',
+  // 2 : restriction des architectures natives aux deux ARM. Le changement ne
+  // touche aucun module — un arm64 exécute exactement le même natif qu'avant —
+  // mais la règle ci-dessus est délibérément brutale. Une règle qu'on
+  // interprète au cas par cas n'en est plus une, et personne n'avait encore
+  // installé la version 1.
+  runtimeVersion: '2',
 
   updates: {
     url: 'https://u.expo.dev/c47eb463-3f64-436b-ade3-2c50a9d9b24d',
