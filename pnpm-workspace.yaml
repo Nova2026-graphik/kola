@@ -7,3 +7,5 @@ packages:
 # d'eslint-plugin-import-x n'est pas compilé et la résolution d'import échoue.
 onlyBuiltDependencies:
   - unrs-resolver
+  # Compile le binding natif SQLite utilisé par les tests Vitest (#27).
+  - better-sqlite3

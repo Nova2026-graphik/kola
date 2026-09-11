@@ -53,6 +53,12 @@ jobs:
       - name: Vérifier le formatage
         run: pnpm format:check
 
+      - name: Vérifier la fraîcheur des types générés
+        # Comparaison d'empreinte, pas de régénération : la CI n'a besoin ni de
+        # Docker, ni d'une base, ni du réseau. Elle constate juste qu'une
+        # migration n'a pas été ajoutée sans régénérer les types (#16).
+        run: pnpm db:types:check
+
       - name: Lint
         run: pnpm lint
 
