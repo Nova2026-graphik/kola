@@ -11,3 +11,4 @@ export * from './otp';
 export * from './username';
 export * from './system-messages';
 export * from './permissions';
+export * from './notifications';

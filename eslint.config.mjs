@@ -20,6 +20,10 @@ export default tseslint.config(
       '**/*.tsbuildinfo',
       // Fichier régénéré par `pnpm db:types` (#16), jamais édité à la main.
       'packages/core/src/database.types.ts',
+      // Fonctions Edge : Deno, pas Node. Elles importent depuis JSR et
+      // utilisent le global `Deno`, que la résolution TypeScript de ce dépôt ne
+      // connaît pas. Leur vérification passe par `deno check`, pas par ESLint.
+      'supabase/functions/**',
     ],
   },
 

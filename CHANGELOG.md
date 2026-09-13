@@ -113,6 +113,11 @@ applique le [versionnement sémantique](https://semver.org/lang/fr/).
   vérifications (#78)
 - `docs/livraison.md` : ce qui exige un nouveau build et ce qui passe en mise à jour, et
   pourquoi `runtimeVersion` est fixée explicitement plutôt que par empreinte
+- Enregistrement du jeton push par appareil, demandé après le premier message envoyé et
+  non au lancement, renouvelé au démarrage et effacé à la déconnexion (#57)
+- Notifications push regroupées par conversation : une notification pour dix messages
+  rapprochés, sourdine, blocage et lecture appliqués en SQL et non dans la fonction Edge,
+  jetons morts invalidés, aperçu masquable (#58)
 
 ### Corrigé
 
