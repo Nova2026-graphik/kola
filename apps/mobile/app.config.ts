@@ -99,6 +99,17 @@ const config: ExpoConfig = {
     'expo-status-bar',
     'expo-updates',
     [
+      // Sans canal Android déclaré, Android 8+ reçoit la notification et la
+      // jette en silence. L'identifiant doit correspondre au `channelId` que
+      // la fonction Edge envoie (#57, #58).
+      'expo-notifications',
+      {
+        icon: './assets/adaptive-icon.png',
+        color: BRAND_COLOR,
+        defaultChannel: 'messages',
+      },
+    ],
+    [
       // La liste des conversations doit s'afficher dès le premier rendu :
       // un écran de démarrage sobre vaut mieux qu'une animation coûteuse.
       'expo-splash-screen',

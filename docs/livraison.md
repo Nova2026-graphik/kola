@@ -119,6 +119,32 @@ npx eas-cli@latest build --platform ios --profile preview
 La première commande enregistre les appareils autorisés, la seconde construit.
 Les identifiants sont gérés par EAS, rien n'est à conserver localement.
 
+## Notifications push
+
+Deux secrets Vault doivent être créés **une fois par projet Supabase**, sans quoi
+le minuteur tourne à vide et aucune notification ne part :
+
+```sql
+select vault.create_secret('https://<ref>.supabase.co', 'project_url');
+select vault.create_secret('<clé de service>',          'service_role_key');
+```
+
+La clé de service contourne RLS : elle n'a rien à faire dans une migration
+versionnée. Vault la chiffre au repos, et seule `dispatch_notifications()` la
+relit. Tant qu'elle est absente, la fonction ne fait rien plutôt que d'échouer
+toutes les dix secondes — un journal saturé d'erreurs attendues est un journal
+que personne ne lit.
+
+**Android exige en plus un compte de service FCM**, à téléverser chez Expo
+(`eas credentials`). Sans lui, Expo accepte le jeton mais Google refuse la
+livraison. **iOS exige une clé APNs**, donc l'Apple Developer Program.
+
+La fonction Edge se déploie avec :
+
+```bash
+npx supabase functions deploy notify --project-ref <ref>
+```
+
 ## Variables d'environnement
 
 L'URL Supabase et la clé publishable vivent dans les variables d'environnement
